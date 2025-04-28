@@ -6,11 +6,12 @@ const Client = () => {
   const [roomCode, setRoomCode] = useState("");
   const [joinedRoom, setJoinedRoom] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [gameStarted, setGameStarted] = useState(false); // NEW
 
   const handleJoin = () => {
     if (name.trim() && roomCode.trim()) {
-        console.log("🚀 Emitting join-room", { roomCode, name });
-        socket.emit("join-room", { roomCode: roomCode.trim().toUpperCase(), name });
+      console.log("🚀 Emitting join-room", { roomCode, name });
+      socket.emit("join-room", { roomCode: roomCode.trim().toUpperCase(), name });
     }
   };
 
@@ -24,11 +25,16 @@ const Client = () => {
       setErrorMessage(msg);
     });
 
+    socket.on("game-started", () => {
+      console.log("🎮 Game started (client)");
+      setGameStarted(true); // switch UI
+    });
+
     return () => {
-        socket.off("joined-room");
-        socket.off("error-message");
-      };
-      
+      socket.off("joined-room");
+      socket.off("error-message");
+      socket.off("game-started"); // cleanup
+    };
   }, []);
 
   return (
@@ -53,8 +59,10 @@ const Client = () => {
           <button onClick={handleJoin}>Join Room</button>
           {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
         </>
-      ) : (
+      ) : !gameStarted ? (
         <h2>✅ You joined room {roomCode.toUpperCase()}</h2>
+      ) : (
+        <h2>🎉 Game Started!</h2>
       )}
     </div>
   );
