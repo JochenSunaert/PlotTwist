@@ -45,10 +45,30 @@ function startGame(socket, io, rooms, gameStates) {
       io.to(player.id).emit("team-assigned", { team: "Villain" });
     });
   
+    // Select a random player to choose the prompt
+    const randomPlayer = room.players[Math.floor(Math.random() * room.players.length)];
+    io.to(roomCode).emit("prompt-selection", { playerId: randomPlayer.id, playerName: randomPlayer.name });
+  
+    // Notify the host and players about the game starting
     io.to(roomCode).emit("game-started");
     console.log(`🎮 Game started in room ${roomCode}`);
   }
   
+  function handleSubmitPrompt(socket, io, rooms, data) {
+    const roomCode = socket.roomCode;
+    const { prompt } = data;
+  
+    if (!roomCode || !rooms[roomCode]) {
+      console.log(`❌ Submit prompt failed: Room ${roomCode} not found.`);
+      return;
+    }
+  
+    // Broadcast the prompt to all players and the host
+    io.to(roomCode).emit("prompt-submitted", { prompt });
+    console.log(`📜 Prompt submitted for room ${roomCode}: ${prompt}`);
+  }
+  
   module.exports = {
     startGame,
+    handleSubmitPrompt,
   };

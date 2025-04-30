@@ -82,5 +82,5 @@ function handleDisconnect(socket, io, rooms) {
 module.exports = {
   createRoom,
   joinRoom,
-  handleDisconnect,
+  handleDisconnect, // Ensure this is exported
 };

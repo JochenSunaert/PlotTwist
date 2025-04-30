@@ -1,5 +1,6 @@
-const { createRoom, joinRoom, handleDisconnect } = require("./rooms"); // Removed startGame from rooms
-const { startGame } = require("./game"); // Import startGame from game.js
+const { createRoom, joinRoom, handleDisconnect } = require("./rooms");
+const { startGame, handleSubmitPrompt } = require("./game");
+
 
 module.exports = (io) => {
   const rooms = {};      // Room data
@@ -16,6 +17,10 @@ module.exports = (io) => {
 
     // Start the game
     socket.on("start-game", () => startGame(socket, io, rooms, gameStates));
+
+    // Submit a prompt
+    socket.on("submit-prompt", (data) => handleSubmitPrompt(socket, io, rooms, data));
+    
 
     // Handle disconnects
     socket.on("disconnect", () => handleDisconnect(socket, io, rooms));
