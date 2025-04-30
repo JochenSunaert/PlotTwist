@@ -7,6 +7,7 @@ const Host = () => {
   const [gameStarted, setGameStarted] = useState(false);
   const [promptPlayerName, setPromptPlayerName] = useState("");
   const [submittedPrompt, setSubmittedPrompt] = useState("");
+  const [timer, setTimer] = useState(null); // Track the timer countdown
 
   useEffect(() => {
     socket.emit("create-room");
@@ -32,12 +33,18 @@ const Host = () => {
       setSubmittedPrompt(prompt);
     });
 
+    // Listen for timer updates
+    socket.on("timer-update", (timeLeft) => {
+      setTimer(timeLeft);
+    });
+
     return () => {
       socket.off("room-created");
       socket.off("players-update");
       socket.off("game-started");
       socket.off("prompt-selection");
       socket.off("prompt-submitted");
+      socket.off("timer-update");
     };
   }, []);
 
@@ -62,11 +69,16 @@ const Host = () => {
           🚀 Start Game
         </button>
       ) : (
-        submittedPrompt ? (
-          <h2>📜 The prompt is: {submittedPrompt}</h2>
-        ) : (
-          <h2>⏳ Waiting for {promptPlayerName} to select a prompt...</h2>
-        )
+        <>
+          {submittedPrompt ? (
+            <h2>📜 The prompt is: {submittedPrompt}</h2>
+          ) : (
+            <>
+              <h2>⏳ Waiting for {promptPlayerName} to select a prompt...</h2>
+              {timer !== null && <p>⏳ Time left: {timer} seconds</p>}
+            </>
+          )}
+        </>
       )}
     </div>
   );

@@ -13,6 +13,7 @@ const Client = () => {
   const [waitingForPrompt, setWaitingForPrompt] = useState(false);
   const [promptPlayerName, setPromptPlayerName] = useState("");
   const [submittedPrompt, setSubmittedPrompt] = useState("");
+  const [timer, setTimer] = useState(null); // Track the timer countdown
 
   const predefinedPrompts = [
     "A notorious thief has stolen a valuable diamond from the city's museum and it's your job to either catch the thief or help them escape.",
@@ -75,6 +76,19 @@ const Client = () => {
       setIsPromptPlayer(false);
     });
 
+    // Listen for timer updates
+    socket.on("timer-update", (timeLeft) => {
+      setTimer(timeLeft);
+    });
+
+    // Save the prompt automatically when the timer hits 0
+    socket.on("timer-ended", () => {
+      if (isPromptPlayer && prompt.trim()) {
+        console.log("⏳ Timer ended, auto-submitting prompt:", prompt);
+        socket.emit("submit-prompt", { prompt });
+      }
+    });
+
     return () => {
       socket.off("joined-room");
       socket.off("error-message");
@@ -82,8 +96,10 @@ const Client = () => {
       socket.off("game-started");
       socket.off("prompt-selection");
       socket.off("prompt-submitted");
+      socket.off("timer-update");
+      socket.off("timer-ended");
     };
-  }, []);
+  }, [isPromptPlayer, prompt]);
 
   return (
     <div style={{ padding: "2rem" }}>
@@ -132,6 +148,7 @@ const Client = () => {
                 Random
               </button>
               <button onClick={handleSubmitPrompt}>Submit Prompt</button>
+              {timer !== null && <p>⏳ Time left: {timer} seconds</p>}
             </>
           ) : null}
         </>

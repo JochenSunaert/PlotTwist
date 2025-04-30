@@ -45,6 +45,19 @@ function startGame(socket, io, rooms, gameStates) {
       io.to(player.id).emit("team-assigned", { team: "Villain" });
     });
   
+    // Start a timer for prompt selection
+    const timerDuration = 30; // 30 seconds
+    let timeLeft = timerDuration;
+    const timerInterval = setInterval(() => {
+      timeLeft -= 1;
+      io.to(roomCode).emit("timer-update", timeLeft);
+  
+      if (timeLeft <= 0) {
+        clearInterval(timerInterval);
+        io.to(roomCode).emit("timer-ended");
+      }
+    }, 1000);
+  
     // Select a random player to choose the prompt
     const randomPlayer = room.players[Math.floor(Math.random() * room.players.length)];
     io.to(roomCode).emit("prompt-selection", { playerId: randomPlayer.id, playerName: randomPlayer.name });
