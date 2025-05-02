@@ -11,6 +11,7 @@ const Host = () => {
   const [timer, setTimer] = useState(null); // Timer for the prompt phase
   const [answerTimer, setAnswerTimer] = useState(null); // Timer for the answer phase
   const [answers, setAnswers] = useState([]);
+  const [submittedPlayers, setSubmittedPlayers] = useState([]); // Track players who have submitted answers
 
   useEffect(() => {
     if (!roomCode) {
@@ -60,6 +61,12 @@ const Host = () => {
       setAnswerTimer(timeLeft);
     });
 
+    // Track players who submitted answers
+    socket.on("player-submitted", ({ playerId }) => {
+      console.log(`Player ${playerId} has submitted their answer.`);
+      setSubmittedPlayers((prev) => [...prev, playerId]);
+    });
+
     socket.on("answer-phase-ended", () => {
       console.log("⏳ Answer phase ended");
       setAnswerTimer(null); // Clear the answer timer after the answer phase ends
@@ -80,6 +87,7 @@ const Host = () => {
       socket.off("error-message", handleErrorMessage);
       socket.off("timer-update");
       socket.off("timer-ended");
+      socket.off("player-submitted");
       socket.off("answer-timer-update");
       socket.off("answer-phase-ended");
       socket.off("answers-collected");
@@ -99,7 +107,14 @@ const Host = () => {
       <h3>Players in Room:</h3>
       <ul>
         {players.map((p) => (
-          <li key={p.id}>{p.name}</li>
+          <li key={p.id}>
+            {p.name}{" "}
+            {submittedPlayers.includes(p.id) ? (
+              <span style={{ color: "green" }}>✔️ Submitted</span>
+            ) : (
+              <span style={{ color: "orange" }}>⏳ Pending</span>
+            )}
+          </li>
         ))}
       </ul>
 
