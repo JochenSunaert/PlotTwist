@@ -104,8 +104,10 @@ const Client = () => {
   return (
     <div style={{ padding: "2rem" }}>
       <h1>Client Screen</h1>
+      <p>{team}</p>
       {!joinedRoom ? (
         <>
+        
           <input
             type="text"
             placeholder="Your name"
@@ -126,11 +128,11 @@ const Client = () => {
       ) : !gameStarted ? (
         <>
           <h2>✅ You joined room {roomCode.toUpperCase()}</h2>
-          {team && <p>🧑‍🤝‍🧑 Your team: <strong>{team}</strong></p>}
         </>
       ) : (
         <>
           <h2>🎉 Game Started!</h2>
+          {team && <p>🧑‍🤝‍🧑 Your team: <strong>{team}</strong></p>}
           {submittedPrompt ? (
             <p>📜 The prompt is: {submittedPrompt}</p>
           ) : waitingForPrompt ? (

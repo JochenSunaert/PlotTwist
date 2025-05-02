@@ -46,7 +46,7 @@ function startGame(socket, io, rooms, gameStates) {
     });
   
     // Start a timer for prompt selection
-    const timerDuration = 30; // 30 seconds
+    const timerDuration = 10; // 30 seconds
     let timeLeft = timerDuration;
     const timerInterval = setInterval(() => {
       timeLeft -= 1;
