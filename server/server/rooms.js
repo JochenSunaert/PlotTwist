@@ -2,25 +2,27 @@ const { generateRoomCode } = require("./utils");
 
 // Create a new room
 function createRoom(socket, rooms) {
-  const existingRoom = Object.values(rooms).find((room) => room.hostId === socket.id);
-
-  if (existingRoom) {
-    socket.emit("error-message", "You already have an active room.");
-    console.log(`❌ Host ${socket.id} already has an active room.`);
-    return;
+    // Check if the host already owns a room
+    const existingRoom = Object.values(rooms).find((room) => room.hostId === socket.id);
+  
+    if (existingRoom) {
+    //   socket.emit("error-message", "You already have an active room.");
+      console.log(`❌ Host ${socket.id} already has an active room.`);
+      return;
+    }
+  
+    // Generate a new room code
+    const code = generateRoomCode(rooms);
+    rooms[code] = {
+      hostId: socket.id,
+      players: [],
+      locked: false,
+    };
+    socket.roomCode = code; // Assign roomCode to the host's socket
+    socket.join(code);
+    socket.emit("room-created", code);
+    console.log(`🏠 Room ${code} created by ${socket.id}`);
   }
-
-  const code = generateRoomCode(rooms);
-  rooms[code] = {
-    hostId: socket.id,
-    players: [],
-    locked: false,
-  };
-  socket.roomCode = code; // Assign roomCode to the host's socket
-  socket.join(code);
-  socket.emit("room-created", code);
-  console.log(`🏠 Room ${code} created by ${socket.id}`);
-}
 
 // Join an existing room
 function joinRoom(socket, io, rooms, { roomCode, name }) {
@@ -59,25 +61,24 @@ function joinRoom(socket, io, rooms, { roomCode, name }) {
   console.log(`${name} joined room ${roomCode}`);
 }
 
-// Handle disconnects
 function handleDisconnect(socket, io, rooms) {
-  const code = socket.roomCode;
-  if (code && rooms[code]) {
-    const room = rooms[code];
-
-    if (room.hostId === socket.id) {
-      // Host left
-      delete rooms[code];
-      io.to(code).emit("error-message", "Host left, room closed.");
-      console.log(`❌ Host left, deleting room ${code}`);
-    } else {
-      // Player left
-      room.players = room.players.filter((p) => p.id !== socket.id);
-      io.to(code).emit("players-update", room.players);
-      console.log(`🔴 Player left room ${code}`);
+    const code = socket.roomCode;
+    if (code && rooms[code]) {
+      const room = rooms[code];
+  
+      if (room.hostId === socket.id) {
+        // Host left
+        delete rooms[code];
+        io.to(code).emit("error-message", "Host left, room closed.");
+        console.log(`❌ Host left, deleting room ${code}`);
+      } else {
+        // Player left
+        room.players = room.players.filter((p) => p.id !== socket.id);
+        io.to(code).emit("players-update", room.players);
+        console.log(`🔴 Player left room ${code}`);
+      }
     }
   }
-}
 
 module.exports = {
   createRoom,

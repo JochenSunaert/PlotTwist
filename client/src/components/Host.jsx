@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import socket from "./socket";
+import socket from "./socket"; // Import a single socket instance
 
 const Host = () => {
   const [roomCode, setRoomCode] = useState("");
@@ -7,49 +7,47 @@ const Host = () => {
   const [gameStarted, setGameStarted] = useState(false);
   const [promptPlayerName, setPromptPlayerName] = useState("");
   const [submittedPrompt, setSubmittedPrompt] = useState("");
+  const [errorMessage, setErrorMessage] = useState(""); // Track server errors
   const [timer, setTimer] = useState(null); // Track the timer countdown
 
   useEffect(() => {
-    socket.emit("create-room");
+    // Emit the create-room event only if roomCode is not set
+    if (!roomCode) {
+      socket.emit("create-room");
+    }
 
-    socket.on("room-created", (code) => {
+    const handleRoomCreated = (code) => {
       setRoomCode(code);
-    });
+    };
 
-    socket.on("players-update", (players) => {
-      setPlayers(players);
-    });
+    const handleErrorMessage = (message) => {
+      setErrorMessage(message);
+    };
 
-    socket.on("game-started", () => {
-      console.log("🎮 Game started (host)");
-      setGameStarted(true);
-    });
-
-    socket.on("prompt-selection", ({ playerName }) => {
-      setPromptPlayerName(playerName);
-    });
-
-    socket.on("prompt-submitted", ({ prompt }) => {
-      setSubmittedPrompt(prompt);
-    });
-
-    // Listen for timer updates
-    socket.on("timer-update", (timeLeft) => {
-      setTimer(timeLeft);
-    });
+    // Listeners for events
+    socket.on("room-created", handleRoomCreated);
+    socket.on("players-update", (players) => setPlayers(players));
+    socket.on("game-started", () => setGameStarted(true));
+    socket.on("prompt-selection", ({ playerName }) => setPromptPlayerName(playerName));
+    socket.on("prompt-submitted", ({ prompt }) => setSubmittedPrompt(prompt));
+    socket.on("error-message", handleErrorMessage);
+    socket.on("timer-update", (timeLeft) => setTimer(timeLeft));
 
     return () => {
-      socket.off("room-created");
+      // Cleanup listeners on unmount
+      socket.off("room-created", handleRoomCreated);
       socket.off("players-update");
       socket.off("game-started");
       socket.off("prompt-selection");
       socket.off("prompt-submitted");
+      socket.off("error-message", handleErrorMessage);
       socket.off("timer-update");
     };
-  }, []);
+  }, [roomCode]);
 
   const handleStartGame = () => {
     console.log("Room Code before emitting:", roomCode);
+    setErrorMessage(""); // Reset error message before starting the game
     socket.emit("start-game");
   };
 
@@ -64,21 +62,21 @@ const Host = () => {
         ))}
       </ul>
 
+      {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
+
       {!gameStarted ? (
         <button onClick={handleStartGame} style={{ marginTop: "2rem" }}>
           🚀 Start Game
         </button>
       ) : (
-        <>
-          {submittedPrompt ? (
-            <h2>📜 The prompt is: {submittedPrompt}</h2>
-          ) : (
-            <>
-              <h2>⏳ Waiting for {promptPlayerName} to select a prompt...</h2>
-              {timer !== null && <p>⏳ Time left: {timer} seconds</p>}
-            </>
-          )}
-        </>
+        submittedPrompt ? (
+          <h2>📜 The prompt is: {submittedPrompt}</h2>
+        ) : (
+          <div>
+            <h2>⏳ Waiting for {promptPlayerName} to select a prompt...</h2>
+            <p>⏳ Time left: {timer} seconds</p>
+          </div>
+        )
       )}
     </div>
   );

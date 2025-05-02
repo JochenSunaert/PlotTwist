@@ -14,6 +14,7 @@ const Client = () => {
   const [promptPlayerName, setPromptPlayerName] = useState("");
   const [submittedPrompt, setSubmittedPrompt] = useState("");
   const [timer, setTimer] = useState(null); // Track the timer countdown
+  
 
   const predefinedPrompts = [
     "A notorious thief has stolen a valuable diamond from the city's museum and it's your job to either catch the thief or help them escape.",
@@ -45,8 +46,8 @@ const Client = () => {
       setErrorMessage("");
     });
 
-    socket.on("error-message", (msg) => {
-      setErrorMessage(msg);
+    socket.on("error-message", (message) => {
+      setErrorMessage(message);
     });
 
     socket.on("team-assigned", ({ team }) => {
@@ -71,7 +72,12 @@ const Client = () => {
     });
 
     socket.on("prompt-submitted", ({ prompt }) => {
-      setSubmittedPrompt(prompt);
+      if (!prompt || prompt.trim() === "") {
+        setSubmittedPrompt("Prompt is empty");
+      } else {
+        setSubmittedPrompt(prompt);
+      }
+    
       setWaitingForPrompt(false);
       setIsPromptPlayer(false);
     });
@@ -107,7 +113,6 @@ const Client = () => {
       <p>{team}</p>
       {!joinedRoom ? (
         <>
-        
           <input
             type="text"
             placeholder="Your name"
