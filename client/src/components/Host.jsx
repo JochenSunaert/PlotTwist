@@ -8,10 +8,11 @@ const Host = () => {
   const [promptPlayerName, setPromptPlayerName] = useState("");
   const [submittedPrompt, setSubmittedPrompt] = useState("");
   const [errorMessage, setErrorMessage] = useState(""); // Track server errors
-  const [timer, setTimer] = useState(null); // Track the timer countdown
+  const [promptTimer, setPromptTimer] = useState(null); // Timer for the prompt phase
+  const [answerTimer, setAnswerTimer] = useState(null); // Timer for the answer phase
+  const [answers, setAnswers] = useState([]);
 
   useEffect(() => {
-    // Emit the create-room event only if roomCode is not set
     if (!roomCode) {
       socket.emit("create-room");
     }
@@ -31,23 +32,34 @@ const Host = () => {
     socket.on("prompt-selection", ({ playerName }) => setPromptPlayerName(playerName));
     socket.on("prompt-submitted", ({ prompt }) => setSubmittedPrompt(prompt));
     socket.on("error-message", handleErrorMessage);
-    socket.on("timer-update", (timeLeft) => setTimer(timeLeft));
+
+    // Timers
+    socket.on("prompt-timer-update", (timeLeft) => setPromptTimer(timeLeft));
+    socket.on("prompt-phase-ended", () => setPromptTimer(null));
+
+    socket.on("answer-timer-update", (timeLeft) => setAnswerTimer(timeLeft));
+    socket.on("answers-collected", ({ answers }) => {
+      setAnswers(answers);
+      console.log("📨 Answers received on host:", answers);
+    });
 
     return () => {
-      // Cleanup listeners on unmount
       socket.off("room-created", handleRoomCreated);
       socket.off("players-update");
       socket.off("game-started");
       socket.off("prompt-selection");
       socket.off("prompt-submitted");
       socket.off("error-message", handleErrorMessage);
-      socket.off("timer-update");
+      socket.off("prompt-timer-update");
+      socket.off("prompt-phase-ended");
+      socket.off("answer-timer-update");
+      socket.off("answers-collected");
     };
   }, [roomCode]);
 
   const handleStartGame = () => {
     console.log("Room Code before emitting:", roomCode);
-    setErrorMessage(""); // Reset error message before starting the game
+    setErrorMessage("");
     socket.emit("start-game");
   };
 
@@ -69,14 +81,29 @@ const Host = () => {
           🚀 Start Game
         </button>
       ) : (
-        submittedPrompt ? (
-          <h2>📜 The prompt is: {submittedPrompt}</h2>
-        ) : (
-          <div>
-            <h2>⏳ Waiting for {promptPlayerName} to select a prompt...</h2>
-            <p>⏳ Time left: {timer} seconds</p>
-          </div>
-        )
+        <>
+          {submittedPrompt ? (
+            <h2>📜 The prompt is: {submittedPrompt}</h2>
+          ) : (
+            <div>
+              <h2>⏳ Waiting for {promptPlayerName} to select a prompt...</h2>
+              {promptTimer !== null && <p>⏳ Prompt Timer: {promptTimer} seconds</p>}
+            </div>
+          )}
+
+          {answers.length > 0 && (
+            <div>
+              <h3>📨 Collected Answers:</h3>
+              <ul>
+                {answers.map((answer, index) => (
+                  <li key={index}>
+                    <strong>{answer.playerName}:</strong> {answer.answer || "<No answer provided>"}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

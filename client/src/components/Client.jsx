@@ -14,6 +14,10 @@ const Client = () => {
   const [promptPlayerName, setPromptPlayerName] = useState("");
   const [submittedPrompt, setSubmittedPrompt] = useState("");
   const [timer, setTimer] = useState(null); // Track the timer countdown
+  const [answer, setAnswer] = useState(""); // Store the client's answer
+const [answerPhase, setAnswerPhase] = useState(false); // Track if the answer phase is active
+const [answersSubmitted, setAnswersSubmitted] = useState(false); // Track if the answer is submitted
+const [answerTimer, setAnswerTimer] = useState(null); // Track the timer for the answer phase
   
 
   const predefinedPrompts = [
@@ -24,8 +28,8 @@ const Client = () => {
 
   const handleJoin = () => {
     if (name.trim() && roomCode.trim()) {
-      console.log("🚀 Emitting join-room", { roomCode, name });
-      socket.emit("join-room", { roomCode: roomCode.trim().toUpperCase(), name });
+      console.log("🚀 Emitting join-room", { roomCode, name }); // Debug log
+      socket.emit("join-room", { roomCode: roomCode.trim().toUpperCase(), name }); // Emit join-room event
     }
   };
 
@@ -40,6 +44,14 @@ const Client = () => {
     setPrompt(randomPrompt);
   };
 
+
+  const handleSubmitAnswer = () => {
+    // Allow submission of the current textarea value
+    console.log("Submitting answer:", { playerName: name, answer }); // Debug log
+    socket.emit("submit-answer", { playerName: name, answer: answer.trim() || "<No answer provided>" }); // If the answer is empty, submit a placeholder
+    setAnswersSubmitted(true); // Mark the answer as submitted
+  };
+  
   useEffect(() => {
     socket.on("joined-room", (room) => {
       setJoinedRoom(true);
@@ -95,6 +107,29 @@ const Client = () => {
       }
     });
 
+    socket.on("start-answer-phase", () => {
+      setAnswerPhase(true); // Enable the answer phase
+      setAnswersSubmitted(false); // Reset the submission state
+    });
+  
+    // Listen for the timer updates during the answer phase
+    socket.on("answer-timer-update", (timeLeft) => {
+      console.log("⏳ Answer timer updated:", timeLeft);
+      setAnswerTimer(timeLeft); // Update the answer timer
+    });
+  
+    // Listen for the end of the answer phase
+    socket.on("answer-phase-ended", () => {
+      console.log("⏳ Answer phase ended");
+      setAnswerPhase(false); // Disable the answer phase
+      setAnswerTimer(null); // Clear the answer timer
+  
+      if (!answersSubmitted) {
+        console.log("⏳ Timer ended, auto-submitting answer:", answer || "<No answer provided>");
+        handleSubmitAnswer(); // Automatically submit the answer
+      }
+    });
+
     return () => {
       socket.off("joined-room");
       socket.off("error-message");
@@ -104,8 +139,11 @@ const Client = () => {
       socket.off("prompt-submitted");
       socket.off("timer-update");
       socket.off("timer-ended");
+      socket.off("start-answer-phase");
+      socket.off("answer-timer-update");
+      socket.off("answer-phase-ended");
     };
-  }, [isPromptPlayer, prompt]);
+  }, [isPromptPlayer, prompt, answer, answersSubmitted]);
 
   return (
     <div style={{ padding: "2rem" }}>
@@ -158,7 +196,23 @@ const Client = () => {
               {timer !== null && <p>⏳ Time left: {timer} seconds</p>}
             </>
           ) : null}
+          {answerPhase && (
+  <>
+    <textarea
+      placeholder="Write your answer here..."
+      value={answer}
+      onChange={(e) => setAnswer(e.target.value)}
+      disabled={answersSubmitted} // Disable if already submitted
+      style={{ width: "100%", height: "100px", marginBottom: "1rem" }}
+    />
+    <button onClick={handleSubmitAnswer} disabled={answersSubmitted}>
+      {answersSubmitted ? "Answer Submitted" : "Submit Answer"}
+    </button>
+    {answerTimer !== null && <p>⏳ Answer Timer: {answerTimer} seconds</p>}
+  </>
+)}
         </>
+        
       )}
     </div>
   );
