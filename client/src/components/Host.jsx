@@ -12,6 +12,7 @@ const Host = () => {
   const [answerTimer, setAnswerTimer] = useState(null); // Timer for the answer phase
   const [answers, setAnswers] = useState([]);
   const [submittedPlayers, setSubmittedPlayers] = useState([]); // Track players who have submitted answers
+  const [story, setStory] = useState(""); // Store the generated story
 
   useEffect(() => {
     if (!roomCode) {
@@ -77,6 +78,12 @@ const Host = () => {
       console.log("📨 Answers received on host:", answers);
     });
 
+    // Listen for the generated story
+    socket.on("story-generated", ({ story }) => {
+      setStory(story);
+      console.log("📖 Story received:", story);
+    });
+
     return () => {
       // Cleanup listeners on unmount
       socket.off("room-created", handleRoomCreated);
@@ -91,6 +98,7 @@ const Host = () => {
       socket.off("answer-timer-update");
       socket.off("answer-phase-ended");
       socket.off("answers-collected");
+      socket.off("story-generated");
     };
   }, [roomCode, submittedPrompt]);
 
@@ -126,24 +134,14 @@ const Host = () => {
         </button>
       ) : (
         <>
-          {submittedPrompt ? (
-            <h2>📜 The prompt is: {submittedPrompt}</h2>
-          ) : (
-            <div>
-              <h2>⏳ Waiting for {promptPlayerName} to select a prompt...</h2>
-              {/* Display Timer for Prompt Phase */}
-              {timer !== null && <p>⏳ Time left for prompt phase: {timer} seconds</p>}
-            </div>
-          )}
+         
 
-          {/* Display Timer for Answer Phase */}
           {answerTimer !== null && (
             <div>
               <h3>⏳ Time left for answer phase: {answerTimer} seconds</h3>
             </div>
           )}
 
-          {/* Display Collected Answers */}
           {answers.length > 0 && (
             <div>
               <h3>📨 Collected Answers:</h3>
@@ -154,6 +152,23 @@ const Host = () => {
                   </li>
                 ))}
               </ul>
+            </div>
+          )}
+
+{submittedPrompt ? (
+            <>
+              <h2>📜 The prompt is: {submittedPrompt}</h2>
+              {story && (
+                <div>
+                  <h3>📖 Generated Story:</h3>
+                  <p>{story}</p>
+                </div>
+              )}
+            </>
+          ) : (
+            <div>
+              <h2>⏳ Waiting for {promptPlayerName} to select a prompt...</h2>
+              {timer !== null && <p>⏳ Time left for prompt phase: {timer} seconds</p>}
             </div>
           )}
         </>

@@ -1,3 +1,6 @@
+const openai = require("./openai");
+
+
 function startGame(socket, io, rooms, gameStates) {
   const roomCode = socket.roomCode;
   console.log(`🚀 Starting game... RoomCode: ${roomCode}`);
@@ -77,6 +80,7 @@ function startGame(socket, io, rooms, gameStates) {
       if (!gameStates[roomCode].promptSubmitted) {
         // Pick a random predefined prompt
         const randomPrompt = predefinedPrompts[Math.floor(Math.random() * predefinedPrompts.length)];
+        gameStates[roomCode].prompt = randomPrompt; // Save the random prompt
         io.to(roomCode).emit("prompt-submitted", { prompt: randomPrompt });
         console.log(`⏳ Timer ended: Random prompt selected for room ${roomCode}: ${randomPrompt}`);
       }
@@ -95,37 +99,40 @@ function startGame(socket, io, rooms, gameStates) {
 }
 
 function handleSubmitPrompt(socket, io, rooms, gameStates, data) {
-const roomCode = socket.roomCode;
-const { prompt } = data;
+  const roomCode = socket.roomCode;
+  const { prompt } = data;
 
-if (!roomCode || !rooms[roomCode]) {
-  console.log(`❌ Submit prompt failed: Room ${roomCode} not found.`);
-  return;
+  if (!roomCode || !rooms[roomCode]) {
+    console.log(`❌ Submit prompt failed: Room ${roomCode} not found.`);
+    return;
+  }
+
+  if (!prompt || prompt.trim() === "") {
+    console.log(`❌ Submit prompt failed: Prompt is empty or invalid.`);
+    io.to(socket.id).emit("error", { message: "Prompt cannot be empty. Please try again." });
+    return;
+  }
+
+  // Mark the prompt as submitted in the gameStates
+  gameStates[roomCode].promptSubmitted = true;
+
+  // Save the prompt in the game state
+  gameStates[roomCode].prompt = prompt;
+
+  // Broadcast the prompt to all players and the host
+  io.to(roomCode).emit("prompt-submitted", { prompt });
+  console.log(`📜 Prompt submitted for room ${roomCode}: ${prompt}`);
+
+  io.to(roomCode).emit("start-answer-phase");
+  startAnswerPhase(io, roomCode, gameStates, rooms); // Start the timer for answers
 }
 
-if (!prompt || prompt.trim() === "") {
-  console.log(`❌ Submit prompt failed: Prompt is empty or invalid.`);
-  io.to(socket.id).emit("error", { message: "Prompt cannot be empty. Please try again." });
-  return;
-}
 
-// Mark the prompt as submitted in the gameStates
-gameStates[roomCode].promptSubmitted = true;
-
-// Broadcast the prompt to all players and the host
-io.to(roomCode).emit("prompt-submitted", { prompt });
-console.log(`📜 Prompt submitted for room ${roomCode}: ${prompt}`);
-
-io.to(roomCode).emit("start-answer-phase");
-startAnswerPhase(io, roomCode, gameStates, rooms); // Start the timer for answers
-}
-
-
-function handleSubmitAnswer(socket, io, rooms, gameStates, data) {
-  console.log("Data received on server:", data); // Debug log
+async function handleSubmitAnswer(socket, io, rooms, gameStates, data) {
+  console.log("Data received on server:", data);
 
   const roomCode = socket.roomCode;
-  console.log(`Room code from socket: ${roomCode}`); // Debug log
+  console.log(`Room code from socket: ${roomCode}`);
 
   if (!roomCode || !rooms[roomCode]) {
     console.log(`❌ Submit answer failed: Room ${roomCode} not found.`);
@@ -146,25 +153,38 @@ function handleSubmitAnswer(socket, io, rooms, gameStates, data) {
     return;
   }
 
-  // Ensure there's a container for answers in the game state
   if (!gameState.answers) {
     gameState.answers = [];
   }
 
-  // Add the player's answer to the game state
   const sanitizedAnswer = answer.trim() || "<No answer provided>";
   gameState.answers.push({ playerName, answer: sanitizedAnswer });
+
   console.log(`📝 Answer received from ${playerName}: "${sanitizedAnswer}" in room ${roomCode}`);
 
-  // If all players have submitted their answers
+  io.to(roomCode).emit("player-submitted", { playerId: socket.id });
+
   const allPlayersAnswered = gameState.answers.length === rooms[roomCode].players.length;
-  console.log(`All players answered: ${allPlayersAnswered}`); // Debug log
+  console.log(`All players answered: ${allPlayersAnswered}`);
 
   if (allPlayersAnswered) {
     const hostId = rooms[roomCode].hostId;
-    io.to(hostId).emit("answers-collected", { answers: gameState.answers });
-    io.to(roomCode).emit("answer-phase-ended");
-    console.log(`✅ All players submitted answers for room ${roomCode}`);
+    const prompt = gameState.prompt; // Retrieve the prompt from gameState
+    console.log("📜 Prompt used for story generation:", prompt);
+  
+    try {
+      const story = await generateStory(prompt, gameState.answers);
+  
+      // Send the generated story to the host
+      io.to(hostId).emit("story-generated", { story });
+      console.log(`📖 Generated Story for room ${roomCode}: ${story}`);
+  
+      io.to(roomCode).emit("answer-phase-ended");
+      console.log(`✅ All players submitted answers, story generated for room ${roomCode}`);
+    } catch (error) {
+      console.error("❌ Error generating or sending story:", error);
+      io.to(hostId).emit("error-message", "Failed to generate story. Please try again.");
+    }
   }
 }
 
@@ -199,9 +219,36 @@ function startAnswerPhase(io, roomCode, gameStates, rooms) {
   }, 1000);
 }
 
+async function generateStory(prompt, responses) {
+  try {
+    console.log("📜 Prompt sent to OpenAI:", prompt);
+    console.log("📝 Player responses sent to OpenAI:", responses);
+
+    const input = `
+      The game prompt is: "${prompt}"
+      The players responded as follows:
+      ${responses.map((r, i) => `${i + 1}. ${r.playerName} (${r.team}): ${r.answer}`).join("\n")}
+
+      Write a funny and entertaining story about what happened. Be sure to make jokes and funny scenarios.
+    `;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [{ role: "user", content: input }],
+      temperature: 0.7,
+    });
+
+    return completion.choices[0].message.content;
+  } catch (error) {
+    console.error("❌ Error generating story:", error);
+    return "Oops! The AI assistant encountered an error while trying to create a story.";
+  }
+}
+
 module.exports = {
   startGame,
   handleSubmitPrompt,
   handleSubmitAnswer,
   startAnswerPhase,
+  generateStory,
 };
