@@ -13,6 +13,7 @@ const Host = () => {
   const [answers, setAnswers] = useState([]);
   const [submittedPlayers, setSubmittedPlayers] = useState([]); // Track players who have submitted answers
   const [story, setStory] = useState(""); // Store the generated story
+  const [evaluationResults, setEvaluationResults] = useState(null); // Store the evaluation results
 
   useEffect(() => {
     if (!roomCode) {
@@ -79,9 +80,21 @@ const Host = () => {
     });
 
     // Listen for the generated story
-    socket.on("story-generated", ({ story }) => {
-      setStory(story);
-      console.log("📖 Story received:", story);
+    socket.on("story-generated", (data) => {
+      console.log("📖 Story received:", data.story);
+      setStory(data.story); // Update the story state
+    });
+
+    // Listen for evaluation results
+    socket.on("evaluation-results", (data) => {
+      console.log("🏆 Evaluation Results Received:", data);
+
+      setEvaluationResults({
+        winningTeam: data.winningTeam || "Tie",
+        impactfulPlayer: data.impactfulPlayer || "None",
+        originalPlayer: data.originalPlayer || "None",
+        players: data.players || [],
+      });
     });
 
     return () => {
@@ -99,6 +112,7 @@ const Host = () => {
       socket.off("answer-phase-ended");
       socket.off("answers-collected");
       socket.off("story-generated");
+      socket.off("evaluation-results");
     };
   }, [roomCode, submittedPrompt]);
 
@@ -106,6 +120,33 @@ const Host = () => {
     console.log("Room Code before emitting:", roomCode);
     setErrorMessage(""); // Reset error message before starting the game
     socket.emit("start-game");
+  };
+
+  const renderEvaluationResults = () => {
+    if (!evaluationResults) return null;
+
+    return (
+      <div style={{ marginTop: "1rem" }}>
+        <h3>🏆 Points and Evaluation:</h3>
+        <p>
+          <strong>Winning Team:</strong> {evaluationResults.winningTeam || "Tie"}
+        </p>
+        <p>
+          <strong>Most Impactful Player:</strong> {evaluationResults.impactfulPlayer || "None"}
+        </p>
+        <p>
+          <strong>Most Original Player:</strong> {evaluationResults.originalPlayer || "None"}
+        </p>
+        <h4>Player Scores:</h4>
+        <ul>
+          {evaluationResults.players.map((player) => (
+            <li key={player.id}>
+              {player.name} (Team: {player.team}): {player.score} points
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
   };
 
   return (
@@ -134,8 +175,6 @@ const Host = () => {
         </button>
       ) : (
         <>
-         
-
           {answerTimer !== null && (
             <div>
               <h3>⏳ Time left for answer phase: {answerTimer} seconds</h3>
@@ -155,7 +194,7 @@ const Host = () => {
             </div>
           )}
 
-{submittedPrompt ? (
+          {submittedPrompt ? (
             <>
               <h2>📜 The prompt is: {submittedPrompt}</h2>
               {story && (
@@ -164,6 +203,7 @@ const Host = () => {
                   <p>{story}</p>
                 </div>
               )}
+              {renderEvaluationResults()}
             </>
           ) : (
             <div>

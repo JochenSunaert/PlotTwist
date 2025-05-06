@@ -67,7 +67,7 @@ function startGame(socket, io, rooms, gameStates) {
   ];
 
   // Start a timer for prompt selection
-  const timerDuration = 10; // 10 seconds
+  const timerDuration = 25; // 10 seconds
   let timeLeft = timerDuration;
   const timerInterval = setInterval(() => {
     timeLeft -= 1;
@@ -157,10 +157,17 @@ async function handleSubmitAnswer(socket, io, rooms, gameStates, data) {
     gameState.answers = [];
   }
 
-  const sanitizedAnswer = answer.trim() || "<No answer provided>";
-  gameState.answers.push({ playerName, answer: sanitizedAnswer });
+  // Find the player's team from the gameState
+  const player = gameState.players.find((p) => p.name === playerName);
+  if (!player) {
+    console.log(`❌ Submit answer failed: Player ${playerName} not found in game state.`);
+    return;
+  }
 
-  console.log(`📝 Answer received from ${playerName}: "${sanitizedAnswer}" in room ${roomCode}`);
+  const sanitizedAnswer = answer.trim() || "<No answer provided>";
+  gameState.answers.push({ playerName, answer: sanitizedAnswer, team: player.team });
+
+  console.log(`📝 Answer received from ${playerName} (Team: ${player.team}): "${sanitizedAnswer}" in room ${roomCode}`);
 
   io.to(roomCode).emit("player-submitted", { playerId: socket.id });
 
@@ -171,14 +178,14 @@ async function handleSubmitAnswer(socket, io, rooms, gameStates, data) {
     const hostId = rooms[roomCode].hostId;
     const prompt = gameState.prompt; // Retrieve the prompt from gameState
     console.log("📜 Prompt used for story generation:", prompt);
-  
+
     try {
       const story = await generateStory(prompt, gameState.answers);
-  
+
       // Send the generated story to the host
       io.to(hostId).emit("story-generated", { story });
       console.log(`📖 Generated Story for room ${roomCode}: ${story}`);
-  
+
       io.to(roomCode).emit("answer-phase-ended");
       console.log(`✅ All players submitted answers, story generated for room ${roomCode}`);
     } catch (error) {
@@ -190,7 +197,7 @@ async function handleSubmitAnswer(socket, io, rooms, gameStates, data) {
 
 // Timer for the answer phase (to be triggered after prompt is submitted)
 function startAnswerPhase(io, roomCode, gameStates, rooms) {
-  const timerDuration = 15; // 15 seconds for the answer phase
+  const timerDuration = 35; // 15 seconds for the answer phase
   let timeLeft = timerDuration;
 
   const timerInterval = setInterval(() => {
@@ -221,16 +228,41 @@ function startAnswerPhase(io, roomCode, gameStates, rooms) {
 
 async function generateStory(prompt, responses) {
   try {
-    console.log("📜 Prompt sent to OpenAI:", prompt);
-    console.log("📝 Player responses sent to OpenAI:", responses);
+    console.log("📤 Sending to OpenAI:");
+    console.log("Responses with Teams:", responses);
+
+    const heroes = responses.filter((r) => r.team === "Hero").map((r) => r.playerName).join(", ");
+    const villains = responses.filter((r) => r.team === "Villain").map((r) => r.playerName).join(", ");
 
     const input = `
-      The game prompt is: "${prompt}"
-      The players responded as follows:
-      ${responses.map((r, i) => `${i + 1}. ${r.playerName} (${r.team}): ${r.answer}`).join("\n")}
+  The game prompt is: "${prompt}"
+  The players responded as follows:
+  ${responses.map((r, i) => `${i + 1}. ${r.playerName} (${r.team}): ${r.answer}`).join("\n")}
 
-      Write a funny and entertaining story about what happened. Be sure to make jokes and funny scenarios.
-    `;
+  The players belong to the following teams:
+  - Heroes: ${heroes}
+  - Villains: ${villains}
+
+  Write a funny and entertaining story about what happened. Make sure:
+  1. Player actions strictly align with their roles as Heroes or Villains.
+  2. Heroes should act heroically, trying to stop Villains and protect others.
+  3. Villains should act villainously, trying to cause chaos or achieve their evil goals.
+  4. Do not contradict the player roles or assign actions that conflict with their team alignment.
+
+  Additionally:
+  - Include a plot twist where possible, but do not explicitly mention that there is a plot twist.
+  - Talk about the actions of every player, and make it interesting to read.
+  - Do not include magical elements or supernatural interventions. Keep it realistic.
+  - If a player did not provide an answer, reflect that in the story by showing them failing or dying.
+  - Ensure there is always a winning team by the end of the story.
+
+  Important:
+  - If a player's role is Hero, they must not act as a Villain.
+  - If a player's role is Villain, they must not act as a Hero.
+  - The story must end with either the Heroes or Villains winning clearly.
+`;
+
+    console.log("📜 Generated Input:", input);
 
     const completion = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
@@ -245,10 +277,153 @@ async function generateStory(prompt, responses) {
   }
 }
 
+async function evaluateAnswers(prompt, responses, story, players) {
+  try {
+    const evaluationInput = `
+    The game prompt is: "${prompt}"
+    The players responded as follows:
+    ${responses.map((r, i) => `${i + 1}. ${r.playerName} (${r.team}): ${r.answer}`).join("\n")}
+  
+    The players belong to the following teams:
+    - Heroes: ${responses.filter(r => r.team === "Hero").map(r => r.playerName).join(", ")}
+    - Villains: ${responses.filter(r => r.team === "Villain").map(r => r.playerName).join(", ")}
+  
+    The generated story is as follows:
+    "${story}"
+  
+    Based on the story and responses, decide:
+    1. Which TEAM (Heroes or Villains) contributed the most to the story? State the winning team.
+    2. Which PLAYER had the most impactful answer, ensuring their actions align with their assigned role? State the player's name.
+    3. Which PLAYER had the most original answer, ensuring their actions align with their assigned role? State the player's name.
+  
+    Provide your response in the following JSON format:
+    {
+      "winningTeam": "Hero" or "Villain" or "Tie",
+      "impactfulPlayer": "PlayerName",
+      "originalPlayer": "PlayerName"
+    }
+  `;
+
+    const evaluation = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [{ role: "user", content: evaluationInput }],
+      temperature: 0,
+    });
+
+    const result = JSON.parse(evaluation.choices[0].message.content);
+    console.log("🏆 Evaluation Results:", result);
+
+    // Assign points based on evaluation
+    players.forEach((player) => {
+      // Winning team points
+      if (player.team === result.winningTeam) {
+        player.score += 1;
+      }
+      // Most impactful answer
+      if (player.name === result.impactfulPlayer) {
+        player.score += 1;
+      }
+      // Most original answer
+      if (player.name === result.originalPlayer) {
+        player.score += 1;
+      }
+    });
+
+    return {
+      ...result,
+      players, // Return updated players with scores
+    };
+  } catch (error) {
+    console.error("❌ Error evaluating answers:", error);
+    return {
+      winningTeam: "Tie",
+      impactfulPlayer: null,
+      originalPlayer: null,
+      players,
+    };
+  }
+}
+async function handleSubmitAnswer(socket, io, rooms, gameStates, data) {
+  console.log("Data received on server:", data);
+
+  const roomCode = socket.roomCode;
+  console.log(`Room code from socket: ${roomCode}`);
+
+  if (!roomCode || !rooms[roomCode]) {
+    console.log(`❌ Submit answer failed: Room ${roomCode} not found.`);
+    socket.emit("error-message", "Room not found.");
+    return;
+  }
+
+  const { playerName, answer } = data;
+
+  const gameState = gameStates[roomCode];
+  if (!gameState) {
+    console.log(`❌ Submit answer failed: Game state for room ${roomCode} not found.`);
+    return;
+  }
+
+  if (!gameState.answers) {
+    gameState.answers = [];
+  }
+
+  // Attempt to find the player by playerName or socket ID
+  let player = gameState.players.find((p) => p.name === playerName);
+
+  if (!player && playerName === '') {
+    // If playerName is empty, find the player based on socket ID
+    player = gameState.players.find((p) => p.id === socket.id);
+  }
+
+  if (!player) {
+    console.log(`❌ Submit answer failed: Player not found in game state.`);
+    return;
+  }
+
+  const sanitizedAnswer = answer.trim() || "<No answer provided>";
+  gameState.answers.push({ playerName: player.name, answer: sanitizedAnswer, team: player.team });
+
+  console.log(`📝 Answer received from ${player.name} (Team: ${player.team}): "${sanitizedAnswer}" in room ${roomCode}`);
+
+  io.to(roomCode).emit("player-submitted", { playerId: socket.id });
+
+  const allPlayersAnswered = gameState.answers.length === rooms[roomCode].players.length;
+  console.log(`All players answered: ${allPlayersAnswered}`);
+
+  if (allPlayersAnswered) {
+    const hostId = rooms[roomCode].hostId;
+    const prompt = gameState.prompt; // Retrieve the prompt from gameState
+    console.log("📜 Prompt used for story generation:", prompt);
+
+    try {
+      const story = await generateStory(prompt, gameState.answers);
+      console.log(`📖 Generated Story for room ${roomCode}: ${story}`);
+
+      // Evaluate answers and assign points
+      const evaluation = await evaluateAnswers(prompt, gameState.answers, story, gameState.players);
+      console.log("🏆 Evaluation Results with Points:", evaluation);
+
+      // Update game state with evaluated players
+      gameState.players = evaluation.players;
+
+      // Send story and evaluation results to the host
+      io.to(hostId).emit("story-generated", { story });
+      io.to(roomCode).emit("evaluation-results", evaluation);
+
+      io.to(roomCode).emit("answer-phase-ended");
+      console.log(`✅ All players submitted answers, story generated, and points assigned for room ${roomCode}`);
+    } catch (error) {
+      console.error("❌ Error generating or evaluating story:", error);
+      io.to(hostId).emit("error-message", "Failed to process the round. Please try again.");
+    }
+  }
+}
+
 module.exports = {
   startGame,
   handleSubmitPrompt,
   handleSubmitAnswer,
   startAnswerPhase,
   generateStory,
+  evaluateAnswers,
 };
