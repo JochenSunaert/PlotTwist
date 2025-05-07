@@ -1,6 +1,5 @@
 const openai = require("./openai");
 
-
 function startGame(socket, io, rooms, gameStates) {
   const roomCode = socket.roomCode;
   console.log(`🚀 Starting game... RoomCode: ${roomCode}`);
@@ -45,42 +44,80 @@ function startGame(socket, io, rooms, gameStates) {
       team: player.team,
       score: 0,
     })),
-    currentRound: 0,
+    currentRound: 0, // Start with the first round
+    totalRounds: room.players.length, // Total rounds equal to the number of players
     startedAt: Date.now(),
     promptSubmitted: false, // Track if a prompt has been submitted
     answers: [], // Add an empty answers array
   };
 
   // Notify players about their teams
+  console.log("📢 Notifying players about their teams...");
   heroTeam.forEach((player) => {
+    console.log(`➡️ Hero: ${player.name}`);
     io.to(player.id).emit("team-assigned", { team: "Hero" });
   });
   villainTeam.forEach((player) => {
+    console.log(`➡️ Villain: ${player.name}`);
     io.to(player.id).emit("team-assigned", { team: "Villain" });
   });
 
-  // Predefined prompts
-  const predefinedPrompts = [
-    "A notorious thief has stolen a valuable diamond from the city's museum and it's your job to either catch the thief or help them escape.",
-    "A hacked satellite will crash into the city in 10 minutes.",
-    "A high-tech bank is being robbed in the middle of the night.",
-  ];
+  // Emit game started event
+  console.log(`📢 Game started for room ${roomCode}.`);
+  io.to(roomCode).emit("game-started");
+
+  // Start the first round
+  startRound(io, roomCode, gameStates, 0); // Pass the round number (0 for the first round)
+}
+
+function startRound(io, roomCode, gameStates, roundNumber) {
+  const gameState = gameStates[roomCode];
+  const players = gameState.players;
+
+  if (roundNumber >= players.length) {
+    // End game if all rounds are complete
+    console.log(`🏁 All rounds complete for room ${roomCode}. Ending game.`);
+    endGame(io, roomCode, gameStates);
+    return;
+  }
+
+  console.log(`🔄 Starting round ${roundNumber + 1} for room ${roomCode}.`);
+  gameState.currentRound = roundNumber;
+  gameState.promptSubmitted = false; // Reset prompt submitted state
+  gameState.answers = []; // Clear answers for the new round
+  gameState.prompt = ""; // Clear the current prompt
+
+  // Notify all clients to reset UI and prepare for the new round
+  io.to(roomCode).emit("round-reset", { roundNumber: roundNumber + 1 });
+
+  // Select the prompt provider (rotate based on round number)
+  const promptProvider = players[roundNumber];
+  console.log(`📢 Prompt provider for round ${roundNumber + 1}: ${promptProvider.name}`);
+  io.to(promptProvider.id).emit("prompt-player", { isPromptPlayer: true });
+  io.to(roomCode).emit("prompt-selection", { playerName: promptProvider.name });
 
   // Start a timer for prompt selection
-  const timerDuration = 25; // 10 seconds
+  const timerDuration = 25; // 25 seconds for prompt selection
   let timeLeft = timerDuration;
+
   const timerInterval = setInterval(() => {
     timeLeft -= 1;
+    console.log(`⏳ Timer: ${timeLeft}s remaining for room ${roomCode}`);
     io.to(roomCode).emit("timer-update", timeLeft);
 
     if (timeLeft <= 0) {
       clearInterval(timerInterval);
 
-      // Check if a prompt was submitted
-      if (!gameStates[roomCode].promptSubmitted) {
-        // Pick a random predefined prompt
+      // Auto-assign a random prompt if none was submitted
+      if (!gameState.promptSubmitted) {
+        const predefinedPrompts = [
+          "A notorious thief has stolen a valuable diamond from the city's museum and it's your job to either catch the thief or help them escape.",
+          "A hacked satellite will crash into the city in 10 minutes.",
+          "A high-tech bank is being robbed in the middle of the night.",
+        ];
+
         const randomPrompt = predefinedPrompts[Math.floor(Math.random() * predefinedPrompts.length)];
-        gameStates[roomCode].prompt = randomPrompt; // Save the random prompt
+        gameState.prompt = randomPrompt; // Save the random prompt
         io.to(roomCode).emit("prompt-submitted", { prompt: randomPrompt });
         console.log(`⏳ Timer ended: Random prompt selected for room ${roomCode}: ${randomPrompt}`);
       }
@@ -88,43 +125,81 @@ function startGame(socket, io, rooms, gameStates) {
       io.to(roomCode).emit("timer-ended");
     }
   }, 1000);
+}
 
-  // Select a random player to choose the prompt (only if there are players)
-  const randomPlayer = room.players[Math.floor(Math.random() * room.players.length)];
-  io.to(roomCode).emit("prompt-selection", { playerId: randomPlayer.id, playerName: randomPlayer.name });
+function endGame(io, roomCode, gameStates) {
+  const gameState = gameStates[roomCode];
+  const players = gameState.players;
 
-  // Notify the host and players about the game starting
-  io.to(roomCode).emit("game-started");
-  console.log(`🎮 Game started in room ${roomCode}`);
+  // Sort players by score
+  const placements = [...players].sort((a, b) => b.score - a.score);
+
+  console.log(`🏁 Ending game for room ${roomCode}. Final placements:`, placements);
+
+  // Emit final placements to all players
+  io.to(roomCode).emit("game-ended", { placements });
+
+  console.log(`📤 Emitted 'game-ended' event for room ${roomCode}.`);
+
+  // Clean up game state
+  delete gameStates[roomCode];
 }
 
 function handleSubmitPrompt(socket, io, rooms, gameStates, data) {
   const roomCode = socket.roomCode;
   const { prompt } = data;
 
+  console.log(`📥 Received prompt submission for room ${roomCode}: "${prompt}"`);
+
+  // Validate room existence
   if (!roomCode || !rooms[roomCode]) {
     console.log(`❌ Submit prompt failed: Room ${roomCode} not found.`);
+    io.to(socket.id).emit("error", { message: "Room not found. Please try again." });
     return;
   }
 
+  // Validate the prompt
   if (!prompt || prompt.trim() === "") {
     console.log(`❌ Submit prompt failed: Prompt is empty or invalid.`);
     io.to(socket.id).emit("error", { message: "Prompt cannot be empty. Please try again." });
     return;
   }
 
-  // Mark the prompt as submitted in the gameStates
-  gameStates[roomCode].promptSubmitted = true;
+  try {
+    const gameState = gameStates[roomCode];
 
-  // Save the prompt in the game state
-  gameStates[roomCode].prompt = prompt;
+    // Mark the prompt as submitted in the game state
+    gameState.promptSubmitted = true;
 
-  // Broadcast the prompt to all players and the host
-  io.to(roomCode).emit("prompt-submitted", { prompt });
-  console.log(`📜 Prompt submitted for room ${roomCode}: ${prompt}`);
+    // Save the prompt in the game state
+    gameState.prompt = prompt;
 
-  io.to(roomCode).emit("start-answer-phase");
-  startAnswerPhase(io, roomCode, gameStates, rooms); // Start the timer for answers
+    // Broadcast the prompt to all players and the host
+    io.to(roomCode).emit("prompt-submitted", { prompt });
+    console.log(`📜 Prompt submitted successfully for room ${roomCode}: "${prompt}"`);
+
+    // Start the answer phase
+    console.log(`⏳ Starting answer phase for room ${roomCode}...`);
+    io.to(roomCode).emit("start-answer-phase");
+    startAnswerPhase(io, roomCode, gameStates, rooms); // Start the timer for answers
+  } catch (error) {
+    console.error(`❌ An error occurred while handling prompt submission for room ${roomCode}:`, error);
+    io.to(socket.id).emit("error", { message: "An unexpected error occurred. Please try again." });
+  }
+}
+
+function handleRestartGame(socket, io, rooms, gameStates) {
+  const roomCode = socket.roomCode;
+
+  if (!roomCode || !rooms[roomCode]) {
+    console.log(`❌ Restart game failed: Room ${roomCode} not found.`);
+    io.to(socket.id).emit("error-message", "Room not found. Please try again.");
+    return;
+  }
+
+  console.log(`🔄 Restarting game for room ${roomCode}.`);
+  delete gameStates[roomCode]; // Clear the game state
+  io.to(roomCode).emit("game-restarted"); // Notify clients that the game has been restarted
 }
 
 
@@ -418,6 +493,34 @@ async function handleSubmitAnswer(socket, io, rooms, gameStates, data) {
     }
   }
 }
+function handleStartNextRound(socket, io, rooms, gameStates, data) {
+  const roomCode = socket.roomCode;
+  const { round } = data;
+
+  console.log(`📢 Received request to start round ${round} for room ${roomCode}.`);
+
+  // Validate room existence
+  if (!roomCode || !rooms[roomCode]) {
+    console.log(`❌ Start next round failed: Room ${roomCode} not found.`);
+    io.to(socket.id).emit("error-message", "Room not found.");
+    return;
+  }
+
+  const gameState = gameStates[roomCode];
+
+  // Check if the game has ended
+  if (round > gameState.totalRounds) {
+    console.log(`🏁 All rounds complete for room ${roomCode}. Ending game.`);
+    endGame(io, roomCode, gameStates); // Trigger end game logic
+    return;
+  }
+
+  // Convert 1-based round number to 0-based index for `startRound`
+  const roundIndex = round - 1;
+
+  console.log(`🔄 Starting round ${round} (index ${roundIndex}) for room ${roomCode}.`);
+  startRound(io, roomCode, gameStates, roundIndex);
+}
 
 module.exports = {
   startGame,
@@ -426,4 +529,6 @@ module.exports = {
   startAnswerPhase,
   generateStory,
   evaluateAnswers,
+  handleStartNextRound,
+  handleRestartGame,
 };

@@ -1,5 +1,5 @@
 const { createRoom, joinRoom, handleDisconnect } = require("./rooms");
-const { startGame, handleSubmitPrompt, handleSubmitAnswer } = require("./game"); // Import handleSubmitAnswer
+const { startGame, handleSubmitPrompt, handleSubmitAnswer, handleStartNextRound, handleRestartGame} = require("./game"); // Import handleSubmitAnswer
 
 module.exports = (io) => {
   const rooms = {};      // Room data
@@ -19,6 +19,14 @@ module.exports = (io) => {
 
     // Submit a prompt
     socket.on("submit-prompt", (data) => handleSubmitPrompt(socket, io, rooms, gameStates, data));
+
+    socket.on("restart-game", () => {
+      handleRestartGame(socket, io, rooms, gameStates);
+    });
+
+    socket.on("start-next-round", (data) => {
+      handleStartNextRound(socket, io, rooms, gameStates, data);
+    });
 
     // Submit an answer
     socket.on("submit-answer", (data) => {

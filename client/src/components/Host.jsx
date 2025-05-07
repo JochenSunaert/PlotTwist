@@ -14,6 +14,18 @@ const Host = () => {
   const [submittedPlayers, setSubmittedPlayers] = useState([]); // Track players who have submitted answers
   const [story, setStory] = useState(""); // Store the generated story
   const [evaluationResults, setEvaluationResults] = useState(null); // Store the evaluation results
+  const [currentRound, setCurrentRound] = useState(1); // Track the current round
+  const [isNextRoundReady, setIsNextRoundReady] = useState(false); // Track if ready for the next round
+
+  // Restart game logic
+  const handleRestartGame = () => {
+    console.log("🔄 Restarting game...");
+    socket.emit("restart-game"); // Notify the server to restart the game
+    setEvaluationResults(null); // Reset evaluation results
+    setPlayers([]); // Clear players
+    setGameStarted(false); // Reset game state
+    setCurrentRound(1); // Reset current round
+  };
 
   useEffect(() => {
     if (!roomCode) {
@@ -57,6 +69,17 @@ const Host = () => {
       setTimer(null); // Clear the timer after the prompt phase ends
     });
 
+    // Reset state for a new round
+    socket.on("round-reset", ({ roundNumber }) => {
+      console.log(`🔄 Round ${roundNumber} reset received.`);
+      setCurrentRound(roundNumber); // Reset the current round
+      setSubmittedPrompt(""); // Clear the prompt
+      setAnswers([]); // Clear answers
+      setSubmittedPlayers([]); // Reset submitted players
+      setStory(""); // Clear the story
+      setEvaluationResults(null); // Clear evaluation results
+    });
+
     // Timer updates for the answer phase
     socket.on("answer-timer-update", (timeLeft) => {
       console.log("⏳ Timer updated for answer phase:", timeLeft);
@@ -95,10 +118,19 @@ const Host = () => {
         originalPlayer: data.originalPlayer || "None",
         players: data.players || [],
       });
+
+      // Mark as ready for the next round
+      setIsNextRoundReady(true);
     });
 
+    socket.on("game-ended", ({ placements }) => {
+      console.log("🏁 Game ended. Final placements:", placements);
+      setGameStarted(false); // Stop the game
+      setEvaluationResults(placements); // Set the final scores for display
+    });
+
+    // Cleanup listeners on unmount
     return () => {
-      // Cleanup listeners on unmount
       socket.off("room-created", handleRoomCreated);
       socket.off("players-update");
       socket.off("game-started");
@@ -113,6 +145,8 @@ const Host = () => {
       socket.off("answers-collected");
       socket.off("story-generated");
       socket.off("evaluation-results");
+      socket.off("round-reset");
+      socket.off("game-ended");
     };
   }, [roomCode, submittedPrompt]);
 
@@ -122,8 +156,24 @@ const Host = () => {
     socket.emit("start-game");
   };
 
+  const handleNextRound = () => {
+    if (currentRound >= players.length) {
+      console.log("🏁 All rounds complete. Game has ended.");
+      setIsNextRoundReady(false);
+      return; // Do not proceed if the game has ended
+    }
+
+    console.log(`🔄 Starting next round...`);
+    setIsNextRoundReady(false); // Reset the state for the next round
+    setCurrentRound((prevRound) => {
+      const nextRound = prevRound + 1;
+      socket.emit("start-next-round", { round: nextRound }); // Send 1-based round number
+      return nextRound; // Update the UI state
+    });
+  };
+
   const renderEvaluationResults = () => {
-    if (!evaluationResults) return null;
+    if (!evaluationResults || !evaluationResults.players) return null;
 
     return (
       <div style={{ marginTop: "1rem" }}>
@@ -170,11 +220,28 @@ const Host = () => {
       {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
 
       {!gameStarted ? (
-        <button onClick={handleStartGame} style={{ marginTop: "2rem" }}>
-          🚀 Start Game
-        </button>
-      ) : (
+  evaluationResults ? (
+    <div>
+      <h2>🏆 Final Scores:</h2>
+      <ul>
+        {evaluationResults.map((player, index) => (
+          <li key={index}>
+            {player.name} (Team: {player.team}): {player.score} points
+          </li>
+        ))}
+      </ul>
+      <button onClick={handleRestartGame} style={{ marginTop: "2rem" }}>
+        🔄 Restart Game
+      </button>
+    </div>
+  ) : (
+    <button onClick={handleStartGame} style={{ marginTop: "2rem" }}>
+      🚀 Start Game
+    </button>
+  )
+) : (
         <>
+          <h2>Round {currentRound}</h2>
           {answerTimer !== null && (
             <div>
               <h3>⏳ Time left for answer phase: {answerTimer} seconds</h3>
@@ -204,6 +271,11 @@ const Host = () => {
                 </div>
               )}
               {renderEvaluationResults()}
+              {isNextRoundReady && (
+                <button onClick={handleNextRound} style={{ marginTop: "1rem" }}>
+                  🔄 Start Next Round
+                </button>
+              )}
             </>
           ) : (
             <div>
