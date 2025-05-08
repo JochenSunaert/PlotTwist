@@ -1,5 +1,8 @@
 const openai = require("./openai");
 
+// ############################### STARTING GAME ###############################
+// This function starts the game for a given room and initializes the game state.
+
 function startGame(socket, io, rooms, gameStates) {
   const roomCode = socket.roomCode;
   console.log(`🚀 Starting game... RoomCode: ${roomCode}`);
@@ -71,6 +74,9 @@ function startGame(socket, io, rooms, gameStates) {
   startRound(io, roomCode, gameStates, rooms, 0); // Pass roundNumber = 0 explicitly
 }
 
+// ############################### STARTING ROUND ###############################
+// This function starts a new round of the game for a given room.
+
 function startRound(io, roomCode, gameStates, rooms, roundNumber) {
   const gameState = gameStates[roomCode];
   const players = gameState.players;
@@ -84,9 +90,10 @@ function startRound(io, roomCode, gameStates, rooms, roundNumber) {
 
   console.log(`🔄 Entering startRound: roundNumber=${roundNumber}, totalRounds=${players.length}`);
 
+  // Check if all rounds are complete
   if (roundNumber >= players.length) {
     console.log(`🏁 All rounds complete for room ${roomCode}. Calling endGame.`);
-    endGame(io, roomCode, gameStates);
+    endGame(io, roomCode, gameStates, rooms); // Pass `rooms` here
     return;
   }
 
@@ -148,25 +155,35 @@ function startRound(io, roomCode, gameStates, rooms, roundNumber) {
   gameState.promptTimer = timerInterval;
 }
 
-function endGame(io, roomCode, gameStates) {
-  console.log(`🏁 endGame function called for room: ${roomCode}`);
-  const gameState = gameStates[roomCode];
-  const players = gameState.players;
+// ############################### ENDING GAME ###############################
+// This function ends the game for a given room and emits the final results to all players.
+  function endGame(io, roomCode, gameStates, rooms) {
+    console.log(`🏁 endGame function called for room: ${roomCode}`);
+    const gameState = gameStates[roomCode];
+    const players = gameState.players;
+  
+    // Sort players by score
+    const placements = [...players].sort((a, b) => b.score - a.score);
+  
+    console.log(`🏁 Final placements:`, placements);
+  
+    // Emit final placements to all players
+    io.to(roomCode).emit("game-ended", { placements });
+    console.log(`📤 Emitted 'game-ended' event with placements:`, placements);
+    console.log(`📤 Emitted 'game-ended' event for room ${roomCode}.`);
+  
+    // Unlock the room to allow new players to join
+    if (rooms[roomCode]) {
+      rooms[roomCode].locked = false;
+      console.log(`🔓 Room ${roomCode} is now unlocked.`);
+    }
+  
+    // Clean up game state
+    delete gameStates[roomCode];
+  }
 
-  // Sort players by score
-  const placements = [...players].sort((a, b) => b.score - a.score);
-
-  console.log(`🏁 Final placements:`, placements);
-
-  // Emit final placements to all players
-  io.to(roomCode).emit("game-ended", { placements });
-  console.log(`📤 Emitted 'game-ended' event with placements:`, placements);
-  console.log(`📤 Emitted 'game-ended' event for room ${roomCode}.`);
-
-  // Clean up game state
-  delete gameStates[roomCode];
-}
-
+// ############################### HANDLING PROMPT SUBMISSION ###############################
+// This function handles the submission of a prompt by the prompt provider.
 function handleSubmitPrompt(socket, io, rooms, gameStates, data) {
   const roomCode = socket.roomCode;
   const { prompt } = data;
@@ -216,7 +233,8 @@ function handleSubmitPrompt(socket, io, rooms, gameStates, data) {
     io.to(socket.id).emit("error", { message: "An unexpected error occurred. Please try again." });
   }
 }
-
+// ############################### HANDLING GAME RESTART ###############################
+// This function handles the restart of a game for a given room.
 function handleRestartGame(socket, io, rooms, gameStates) {
   const roomCode = socket.roomCode;
 
@@ -227,11 +245,18 @@ function handleRestartGame(socket, io, rooms, gameStates) {
   }
 
   console.log(`🔄 Restarting game for room ${roomCode}.`);
+
+  // Reset the room's state
   delete gameStates[roomCode]; // Clear the game state
+  rooms[roomCode].locked = false; // Unlock the room to allow new players to join
+  rooms[roomCode].players = []; // Clear the list of players
+
   io.to(roomCode).emit("game-restarted"); // Notify clients that the game has been restarted
+  console.log(`✅ Room ${roomCode} has been reset and is open for new players.`);
 }
 
-
+// ############################### HANDLING ANSWER SUBMISSION ###############################
+// This function handles the submission of answers by players during the answer phase.
 async function handleSubmitAnswer(socket, io, rooms, gameStates, data) {
   console.log("Data received on server:", data);
 
@@ -300,6 +325,8 @@ async function handleSubmitAnswer(socket, io, rooms, gameStates, data) {
 }
 
 // Timer for the answer phase (to be triggered after prompt is submitted)
+// This function starts the answer phase timer and checks for player submissions.
+// It emits updates to the clients and handles the end of the phase.
 function startAnswerPhase(io, roomCode, gameStates, rooms) {
   const timerDuration = 35; // 35 seconds for the answer phase
   let timeLeft = timerDuration;
@@ -339,6 +366,9 @@ function startAnswerPhase(io, roomCode, gameStates, rooms) {
     gameState.answerPhaseTimer = timerInterval;
   }
 }
+
+// ############################### GENERATING STORY ###############################
+// This function generates a story based on the prompt and player responses using OpenAI's API.
 async function generateStory(prompt, responses) {
   try {
     console.log("📤 Sending to OpenAI:");
@@ -389,6 +419,9 @@ async function generateStory(prompt, responses) {
     return "Oops! The AI assistant encountered an error while trying to create a story.";
   }
 }
+
+// ############################### EVALUATING ANSWERS ###############################
+// This function evaluates the players' answers and assigns points based on their contributions to the story.
 
 async function evaluateAnswers(prompt, responses, story, players) {
   try {
@@ -457,6 +490,8 @@ async function evaluateAnswers(prompt, responses, story, players) {
   }
 }
 
+// ############################### HANDLING ANSWER SUBMISSION ###############################
+// This function handles the submission of answers by players during the answer phase.
 async function handleSubmitAnswer(socket, io, rooms, gameStates, data) {
   console.log("Data received on server:", data);
 
@@ -534,6 +569,8 @@ async function handleSubmitAnswer(socket, io, rooms, gameStates, data) {
   }
 }
 
+// ############################### HANDLING START NEXT ROUND ###############################
+// This function handles the transition to the next round of the game.
 function handleStartNextRound(socket, io, rooms, gameStates, data) {
   const roomCode = socket.roomCode;
 
@@ -562,15 +599,16 @@ function handleStartNextRound(socket, io, rooms, gameStates, data) {
   });
 
   // Validate if the game has ended
-  if (nextRound >= gameState.totalRounds) {
-    console.log(`🏁 All rounds complete for room ${roomCode}. Ending game.`);
-    endGame(io, roomCode, gameStates); // Trigger end game logic
-    return;
-  }
+if (nextRound >= gameState.totalRounds) {
+  console.log(`🏁 All rounds complete for room ${roomCode}. Ending game.`);
+  endGame(io, roomCode, gameStates, rooms); // Pass `rooms` here
+  return;
+}
 
   console.log(`🔄 Starting round ${nextRound + 1} (index ${nextRound}) for room ${roomCode}.`);
   startRound(io, roomCode, gameStates, rooms, nextRound); // Properly pass `nextRound`
 }
+
 module.exports = {
   startGame,
   handleSubmitPrompt,
