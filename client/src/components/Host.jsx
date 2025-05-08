@@ -16,15 +16,25 @@ const Host = () => {
   const [evaluationResults, setEvaluationResults] = useState(null); // Store the evaluation results
   const [currentRound, setCurrentRound] = useState(1); // Track the current round
   const [isNextRoundReady, setIsNextRoundReady] = useState(false); // Track if ready for the next round
+  const [finalResults, setFinalResults] = useState(null); // Track the final results for the game
 
   // Restart game logic
   const handleRestartGame = () => {
     console.log("🔄 Restarting game...");
     socket.emit("restart-game"); // Notify the server to restart the game
     setEvaluationResults(null); // Reset evaluation results
+    setFinalResults(null); // Reset final results
     setPlayers([]); // Clear players
     setGameStarted(false); // Reset game state
     setCurrentRound(1); // Reset current round
+    setPromptPlayerName(""); // Clear the prompt player
+    setSubmittedPrompt(""); // Clear the submitted prompt
+    setAnswers([]); // Clear answers
+    setSubmittedPlayers([]); // Reset submitted players
+    setStory(""); // Clear the story
+    setTimer(null); // Clear the prompt timer
+    setAnswerTimer(null); // Clear the answer timer
+    setIsNextRoundReady(false); // Reset next round readiness
   };
 
   useEffect(() => {
@@ -78,6 +88,8 @@ const Host = () => {
       setSubmittedPlayers([]); // Reset submitted players
       setStory(""); // Clear the story
       setEvaluationResults(null); // Clear evaluation results
+      setTimer(null); // Clear the prompt timer
+      setAnswerTimer(null); // Clear the answer timer
     });
 
     // Timer updates for the answer phase
@@ -92,9 +104,10 @@ const Host = () => {
       setSubmittedPlayers((prev) => [...prev, playerId]);
     });
 
-    socket.on("answer-phase-ended", () => {
-      console.log("⏳ Answer phase ended");
-      setAnswerTimer(null); // Clear the answer timer after the answer phase ends
+    socket.on("answer-phase-ended", ({ nextRoundAvailable }) => {
+      console.log("✅ Answer phase ended.");
+      setAnswerTimer(null); // Clear the answer timer
+      setIsNextRoundReady(nextRoundAvailable); // Mark as ready for the next round
     });
 
     socket.on("answers-collected", ({ answers }) => {
@@ -123,10 +136,11 @@ const Host = () => {
       setIsNextRoundReady(true);
     });
 
+    // Listen for the game-ended event
     socket.on("game-ended", ({ placements }) => {
       console.log("🏁 Game ended. Final placements:", placements);
       setGameStarted(false); // Stop the game
-      setEvaluationResults(placements); // Set the final scores for display
+      setFinalResults(placements); // Set the final scores for display
     });
 
     // Cleanup listeners on unmount
@@ -157,44 +171,29 @@ const Host = () => {
   };
 
   const handleNextRound = () => {
-    if (currentRound >= players.length) {
-      console.log("🏁 All rounds complete. Game has ended.");
-      setIsNextRoundReady(false);
-      return; // Do not proceed if the game has ended
-    }
+    const nextRound = currentRound + 1;
 
-    console.log(`🔄 Starting next round...`);
-    setIsNextRoundReady(false); // Reset the state for the next round
-    setCurrentRound((prevRound) => {
-      const nextRound = prevRound + 1;
-      socket.emit("start-next-round", { round: nextRound }); // Send 1-based round number
-      return nextRound; // Update the UI state
-    });
+    console.log(`🔄 Requesting to start round ${nextRound}...`);
+    socket.emit("start-next-round", { round: nextRound });
+    setIsNextRoundReady(false); // Reset readiness for the next round
   };
 
-  const renderEvaluationResults = () => {
-    if (!evaluationResults || !evaluationResults.players) return null;
+  const renderFinalResults = () => {
+    if (!finalResults) return null;
 
     return (
       <div style={{ marginTop: "1rem" }}>
-        <h3>🏆 Points and Evaluation:</h3>
-        <p>
-          <strong>Winning Team:</strong> {evaluationResults.winningTeam || "Tie"}
-        </p>
-        <p>
-          <strong>Most Impactful Player:</strong> {evaluationResults.impactfulPlayer || "None"}
-        </p>
-        <p>
-          <strong>Most Original Player:</strong> {evaluationResults.originalPlayer || "None"}
-        </p>
-        <h4>Player Scores:</h4>
+        <h3>🏆 Final Results:</h3>
         <ul>
-          {evaluationResults.players.map((player) => (
-            <li key={player.id}>
-              {player.name} (Team: {player.team}): {player.score} points
+          {finalResults.map((player, index) => (
+            <li key={index}>
+              {player.name} (Team: {player.team}) - {player.score} points
             </li>
           ))}
         </ul>
+        <button onClick={handleRestartGame} style={{ marginTop: "1rem" }}>
+          🔄 Restart Game
+        </button>
       </div>
     );
   };
@@ -220,26 +219,14 @@ const Host = () => {
       {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
 
       {!gameStarted ? (
-  evaluationResults ? (
-    <div>
-      <h2>🏆 Final Scores:</h2>
-      <ul>
-        {evaluationResults.map((player, index) => (
-          <li key={index}>
-            {player.name} (Team: {player.team}): {player.score} points
-          </li>
-        ))}
-      </ul>
-      <button onClick={handleRestartGame} style={{ marginTop: "2rem" }}>
-        🔄 Restart Game
-      </button>
-    </div>
-  ) : (
-    <button onClick={handleStartGame} style={{ marginTop: "2rem" }}>
-      🚀 Start Game
-    </button>
-  )
-) : (
+        finalResults ? (
+          renderFinalResults()
+        ) : (
+          <button onClick={handleStartGame} style={{ marginTop: "2rem" }}>
+            🚀 Start Game
+          </button>
+        )
+      ) : (
         <>
           <h2>Round {currentRound}</h2>
           {answerTimer !== null && (
@@ -270,7 +257,28 @@ const Host = () => {
                   <p>{story}</p>
                 </div>
               )}
-              {renderEvaluationResults()}
+              {evaluationResults && (
+                <div style={{ marginTop: "1rem" }}>
+                  <h3>🏆 Points and Evaluation:</h3>
+                  <p>
+                    <strong>Winning Team:</strong> {evaluationResults.winningTeam || "Tie"}
+                  </p>
+                  <p>
+                    <strong>Most Impactful Player:</strong> {evaluationResults.impactfulPlayer || "None"}
+                  </p>
+                  <p>
+                    <strong>Most Original Player:</strong> {evaluationResults.originalPlayer || "None"}
+                  </p>
+                  <h4>Player Scores:</h4>
+                  <ul>
+                    {evaluationResults.players.map((player) => (
+                      <li key={player.id}>
+                        {player.name} (Team: {player.team}): {player.score} points
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {isNextRoundReady && (
                 <button onClick={handleNextRound} style={{ marginTop: "1rem" }}>
                   🔄 Start Next Round
