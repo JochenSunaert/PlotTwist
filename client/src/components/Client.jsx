@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import socket from "./socket";
 
 const Client = () => {
@@ -8,18 +8,29 @@ const Client = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [gameStarted, setGameStarted] = useState(false);
   const [team, setTeam] = useState(null);
-  const [isPromptPlayer, setIsPromptPlayer] = useState(false); // Track if the client is the prompt provider
+  const [isPromptPlayer, setIsPromptPlayer] = useState(false);
   const [prompt, setPrompt] = useState("");
-  const [waitingForPrompt, setWaitingForPrompt] = useState(false); // Track if waiting for another player to submit a prompt
+  const [waitingForPrompt, setWaitingForPrompt] = useState(false);
   const [promptPlayerName, setPromptPlayerName] = useState("");
-  const [currentRound, setCurrentRound] = useState(0); // Track the current round
-  const [totalRounds, setTotalRounds] = useState(0); // Track the total number of rounds
+  const [currentRound, setCurrentRound] = useState(0);
+  const [totalRounds, setTotalRounds] = useState(0);
   const [submittedPrompt, setSubmittedPrompt] = useState("");
-  const [timer, setTimer] = useState(null); // Track the timer countdown
-  const [answer, setAnswer] = useState(""); // Store the client's answer
-  const [answerPhase, setAnswerPhase] = useState(false); // Track if the answer phase is active
-  const [answersSubmitted, setAnswersSubmitted] = useState(false); // Track if the answer is submitted
-  const [answerTimer, setAnswerTimer] = useState(null); // Track the timer for the answer phase
+  const [timer, setTimer] = useState(null);
+  const [answer, setAnswer] = useState("");
+  const [answerPhase, setAnswerPhase] = useState(false);
+  const [answersSubmitted, setAnswersSubmitted] = useState(false);
+  const [answerTimer, setAnswerTimer] = useState(null);
+
+  const answerRef = useRef(answer);
+  const answersSubmittedRef = useRef(answersSubmitted);
+
+  useEffect(() => {
+    answerRef.current = answer;
+  }, [answer]);
+
+  useEffect(() => {
+    answersSubmittedRef.current = answersSubmitted;
+  }, [answersSubmitted]);
 
   const predefinedPrompts = [
     "A notorious thief has stolen a valuable diamond from the city's museum and it's your job to either catch the thief or help them escape.",
@@ -29,14 +40,12 @@ const Client = () => {
 
   const handleJoin = () => {
     if (name.trim() && roomCode.trim()) {
-      console.log("🚀 Emitting join-room", { roomCode, name }); // Debug log
-      socket.emit("join-room", { roomCode: roomCode.trim().toUpperCase(), name }); // Emit join-room event
+      socket.emit("join-room", { roomCode: roomCode.trim().toUpperCase(), name });
     }
   };
 
   const handleSubmitPrompt = () => {
     if (prompt.trim()) {
-      console.log("📜 Submitting prompt:", prompt); // Debug log
       socket.emit("submit-prompt", { prompt });
     }
   };
@@ -46,140 +55,130 @@ const Client = () => {
     setPrompt(randomPrompt);
   };
 
-  const handleSubmitAnswer = () => {
-    console.log("📝 Submitting answer:", { playerName: name, answer }); // Debug log
-    socket.emit("submit-answer", { playerName: name, answer: answer.trim() || "<No answer provided>" }); // If the answer is empty, submit a placeholder
-    setAnswersSubmitted(true); // Mark the answer as submitted
-  };
+  const handleSubmitAnswer = useCallback(() => {
+    if (answersSubmittedRef.current) {
+      return;
+    }
+    const cleanAnswer = answerRef.current.trim() || "<No answer provided>";
+    socket.emit("submit-answer", { playerName: name, answer: cleanAnswer });
+    setAnswersSubmitted(true);
+  }, [name]);
 
   useEffect(() => {
-    socket.on("joined-room", (room) => {
+    const handleJoinedRoom = () => {
       setJoinedRoom(true);
       setErrorMessage("");
-    });
+    };
 
-    socket.on("error-message", (message) => {
-      setErrorMessage(message);
-    });
+    const handleErrorMessage = (message) => setErrorMessage(message);
 
-    socket.on("team-assigned", ({ team }) => {
+    const handleTeamAssigned = ({ team }) => {
       setTeam(team);
-      console.log("✅ Team assigned:", team);
-    });
+    };
 
-    socket.on("game-started", () => {
-      console.log("🎮 Game started event received.");
-      setGameStarted(true);
-    });
+    const handleGameStarted = () => setGameStarted(true);
 
-    socket.on("prompt-player", ({ isPromptPlayer }) => {
-      console.log("🎲 Received 'prompt-player' event. isPromptPlayer:", isPromptPlayer);
-      setIsPromptPlayer(isPromptPlayer); // Enable the textarea for the prompt provider
-      setWaitingForPrompt(!isPromptPlayer); // Other players wait for the prompt
-    });
+    const handlePromptPlayer = ({ isPromptPlayer }) => {
+      setIsPromptPlayer(isPromptPlayer);
+      setWaitingForPrompt(!isPromptPlayer);
+    };
 
-    socket.on("prompt-selection", ({ playerName }) => {
-      console.log(`⏳ Prompt selection event received. Prompt provider: ${playerName}`);
+    const handlePromptSelection = ({ playerName }) => {
       setPromptPlayerName(playerName);
-    });
+    };
 
-    socket.on("prompt-submitted", ({ prompt }) => {
-      console.log("📜 Prompt submitted:", prompt); // Debug log
+    const handlePromptSubmitted = ({ prompt }) => {
       setSubmittedPrompt(prompt || "Prompt is empty");
       setWaitingForPrompt(false);
       setIsPromptPlayer(false);
-    });
+    };
 
-    // Listen for timer updates
-    socket.on("timer-update", (timeLeft) => {
-      console.log(`⏳ Timer update event received. Time left: ${timeLeft}s`);
-      setTimer(timeLeft);
-    });
+    const handleTimerUpdate = (timeLeft) => setTimer(timeLeft);
 
-    // Save the prompt automatically when the timer hits 0
-    socket.on("timer-ended", () => {
-      if (isPromptPlayer && prompt.trim()) {
-        console.log("⏳ Timer ended, auto-submitting prompt:", prompt);
-        socket.emit("submit-prompt", { prompt });
+    const handleTimerEnded = () => {
+      if (!answersSubmittedRef.current) {
+        handleSubmitAnswer();
       }
-    });
+    };
 
-    socket.on("start-answer-phase", () => {
-      console.log("📝 Answer phase started"); // Debug log
-      setAnswerPhase(true); // Enable the answer phase
-      setAnswersSubmitted(false); // Reset the submission state
-    });
+    const handleStartAnswerPhase = () => {
+      setAnswerPhase(true);
+      setAnswersSubmitted(false);
+    };
 
-    // Listen for the timer updates during the answer phase
-    socket.on("answer-timer-update", (timeLeft) => {
-      console.log("⏳ Answer timer updated:", timeLeft);
-      setAnswerTimer(timeLeft); // Update the answer timer
-    });
+    const handleAnswerTimerUpdate = (timeLeft) => setAnswerTimer(timeLeft);
 
-    // Listen for the end of the answer phase
-    socket.on("answer-phase-ended", () => {
-      console.log("⏳ Answer phase ended");
-      setAnswerPhase(false); // Disable the answer phase
-      setAnswerTimer(null); // Clear the answer timer
-
-      if (!answersSubmitted) {
-        console.log("⏳ Timer ended, auto-submitting answer:", answer || "<No answer provided>");
-        handleSubmitAnswer(); // Automatically submit the answer
+    const handleAnswerPhaseEnded = () => {
+      setAnswerPhase(false);
+      setAnswerTimer(null);
+      if (!answersSubmittedRef.current) {
+        handleSubmitAnswer();
       }
-    });
+    };
 
-    socket.on("next-round", ({ currentRound, totalRounds, promptPlayerName }) => {
-      console.log(`🔄 Next round started: Round ${currentRound + 1} of ${totalRounds}`);
+    const handleNextRound = ({ currentRound, totalRounds, promptPlayerName }) => {
       setCurrentRound(currentRound);
+      setTotalRounds(totalRounds);
       setPromptPlayerName(promptPlayerName);
-      setSubmittedPrompt(""); // Reset the prompt for the next round
-      setAnswer(""); // Reset the answer input
-      setAnswersSubmitted(false); // Reset the submission state
-      setAnswerPhase(false); // Reset the answer phase
-    });
+      setSubmittedPrompt("");
+      setAnswer("");
+      setAnswersSubmitted(false);
+      setAnswerPhase(false);
+    };
 
-    socket.on("game-ended", ({ placements }) => {
-      console.log("🏁 Game ended. Final placements:", placements);
-      setName(""); // Reset name
-      setRoomCode(""); // Reset room code
-      setJoinedRoom(false); // Reset joined room state
-      setGameStarted(false); // Reset game state
-      setTeam(null); // Reset team
-      setPrompt(""); // Reset prompt
-      setSubmittedPrompt(""); // Reset submitted prompt
-      setAnswer(""); // Reset answer
-      setAnswersSubmitted(false); // Reset answer submission state
-    });
+    const handleGameEnded = () => {
+      setName("");
+      setRoomCode("");
+      setJoinedRoom(false);
+      setGameStarted(false);
+      setTeam(null);
+      setPrompt("");
+      setSubmittedPrompt("");
+      setAnswer("");
+      setAnswersSubmitted(false);
+    };
 
-    socket.on("round-reset", ({ roundNumber }) => {
-      console.log(`🔄 Round ${roundNumber} reset received.`);
-      setSubmittedPrompt(""); // Clear the prompt
-      setAnswers([]); // Clear answers
-      setSubmittedPlayers([]); // Reset submitted players
-      setStory(""); // Clear the story
-      setEvaluationResults(null); // Clear evaluation results
-      setIsPromptPlayer(false); // Reset prompt provider state
-      setWaitingForPrompt(true); // All players initially wait for the prompt
-    });
+    const handleRoundReset = () => {
+      setSubmittedPrompt("");
+      setIsPromptPlayer(false);
+      setWaitingForPrompt(true);
+    };
+
+    // Register socket listeners
+    socket.on("joined-room", handleJoinedRoom);
+    socket.on("error-message", handleErrorMessage);
+    socket.on("team-assigned", handleTeamAssigned);
+    socket.on("game-started", handleGameStarted);
+    socket.on("prompt-player", handlePromptPlayer);
+    socket.on("prompt-selection", handlePromptSelection);
+    socket.on("prompt-submitted", handlePromptSubmitted);
+    socket.on("timer-update", handleTimerUpdate);
+    socket.on("timer-ended", handleTimerEnded);
+    socket.on("start-answer-phase", handleStartAnswerPhase);
+    socket.on("answer-timer-update", handleAnswerTimerUpdate);
+    socket.on("answer-phase-ended", handleAnswerPhaseEnded);
+    socket.on("next-round", handleNextRound);
+    socket.on("game-ended", handleGameEnded);
+    socket.on("round-reset", handleRoundReset);
 
     return () => {
-      socket.off("joined-room");
-      socket.off("error-message");
-      socket.off("team-assigned");
-      socket.off("game-started");
-      socket.off("prompt-player");
-      socket.off("prompt-selection");
-      socket.off("prompt-submitted");
-      socket.off("timer-update");
-      socket.off("timer-ended");
-      socket.off("start-answer-phase");
-      socket.off("answer-timer-update");
-      socket.off("answer-phase-ended");
-      socket.off("next-round");
-      socket.off("game-ended");
-      socket.off("round-reset");
+      socket.off("joined-room", handleJoinedRoom);
+      socket.off("error-message", handleErrorMessage);
+      socket.off("team-assigned", handleTeamAssigned);
+      socket.off("game-started", handleGameStarted);
+      socket.off("prompt-player", handlePromptPlayer);
+      socket.off("prompt-selection", handlePromptSelection);
+      socket.off("prompt-submitted", handlePromptSubmitted);
+      socket.off("timer-update", handleTimerUpdate);
+      socket.off("timer-ended", handleTimerEnded);
+      socket.off("start-answer-phase", handleStartAnswerPhase);
+      socket.off("answer-timer-update", handleAnswerTimerUpdate);
+      socket.off("answer-phase-ended", handleAnswerPhaseEnded);
+      socket.off("next-round", handleNextRound);
+      socket.off("game-ended", handleGameEnded);
+      socket.off("round-reset", handleRoundReset);
     };
-  }, [isPromptPlayer, prompt, answer, answersSubmitted]);
+  }, [handleSubmitAnswer]);
 
   return (
     <div style={{ padding: "2rem" }}>
@@ -205,9 +204,7 @@ const Client = () => {
           {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
         </>
       ) : !gameStarted ? (
-        <>
-          <h2>✅ You joined room {roomCode.toUpperCase()}</h2>
-        </>
+        <h2>✅ You joined room {roomCode.toUpperCase()}</h2>
       ) : (
         <>
           <h2>🎉 Game Started!</h2>
@@ -239,7 +236,7 @@ const Client = () => {
                 placeholder="Write your answer here..."
                 value={answer}
                 onChange={(e) => setAnswer(e.target.value)}
-                disabled={answersSubmitted} // Disable if already submitted
+                disabled={answersSubmitted}
                 style={{ width: "100%", height: "100px", marginBottom: "1rem" }}
               />
               <button onClick={handleSubmitAnswer} disabled={answersSubmitted}>
