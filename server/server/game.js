@@ -1,4 +1,6 @@
 const openai = require("./openai");
+const { startTimer } = require('./timerUtils');
+
 
 // ############################### STARTING GAME ###############################
 // This function starts the game for a given room and initializes the game state.
@@ -81,32 +83,20 @@ function startRound(io, roomCode, gameStates, rooms, roundNumber) {
   const gameState = gameStates[roomCode];
   const players = gameState.players;
 
-  // Validate roundNumber
   if (typeof roundNumber !== "number" || roundNumber < 0 || roundNumber >= players.length) {
     console.error(`❌ Invalid roundNumber: ${roundNumber}. Cannot start round.`);
     io.to(roomCode).emit("error-message", "Invalid round number. Please try again.");
     return;
   }
 
-  console.log(`🔄 Entering startRound: roundNumber=${roundNumber}, totalRounds=${players.length}`);
-
-  // Check if all rounds are complete
-  if (roundNumber >= players.length) {
-    console.log(`🏁 All rounds complete for room ${roomCode}. Calling endGame.`);
-    endGame(io, roomCode, gameStates, rooms); // Pass `rooms` here
-    return;
-  }
-
   console.log(`🔄 Starting round ${roundNumber + 1} for room ${roomCode}.`);
   gameState.currentRound = roundNumber;
-  gameState.promptSubmitted = false; // Reset prompt submitted state
-  gameState.answers = []; // Clear answers for the new round
-  gameState.prompt = ""; // Clear the current prompt
+  gameState.promptSubmitted = false;
+  gameState.answers = [];
+  gameState.prompt = "";
 
-  // Notify all clients to reset UI and prepare for the new round
   io.to(roomCode).emit("round-reset", { roundNumber: roundNumber + 1 });
 
-  // Select the prompt provider (rotate based on round number)
   const promptProvider = players[roundNumber];
   if (!promptProvider) {
     console.error(`❌ No prompt provider found for round ${roundNumber}.`);
@@ -118,41 +108,30 @@ function startRound(io, roomCode, gameStates, rooms, roundNumber) {
   io.to(promptProvider.id).emit("prompt-player", { isPromptPlayer: true });
   io.to(roomCode).emit("prompt-selection", { playerName: promptProvider.name });
 
-  // Start a timer for prompt selection
-  const timerDuration = 25; // 25 seconds for prompt selection
-  let timeLeft = timerDuration;
-
-  const timerInterval = setInterval(() => {
-    timeLeft -= 1;
-    console.log(`⏳ Timer: ${timeLeft}s remaining for room ${roomCode}`);
-    io.to(roomCode).emit("timer-update", timeLeft);
-
-    if (timeLeft <= 0) {
-      clearInterval(timerInterval);
-
+  gameState.promptTimer = startTimer(
+    25,
+    (timeLeft) => {
+      console.log(`⏳ Timer: ${timeLeft}s remaining for room ${roomCode}`);
+      io.to(roomCode).emit("timer-update", timeLeft);
+    },
+    () => {
       if (!gameState.promptSubmitted) {
-        // Assign a random prompt and emit it
         const predefinedPrompts = [
           "A notorious thief has stolen a valuable diamond from the city's museum and it's your job to either catch the thief or help them escape.",
           "A hacked satellite will crash into the city in 10 minutes.",
           "A high-tech bank is being robbed in the middle of the night.",
         ];
-
         const randomPrompt = predefinedPrompts[Math.floor(Math.random() * predefinedPrompts.length)];
-        gameState.prompt = randomPrompt; // Save the random prompt
+        gameState.prompt = randomPrompt;
         io.to(roomCode).emit("prompt-submitted", { prompt: randomPrompt });
         console.log(`⏳ Timer ended: Random prompt selected for room ${roomCode}: ${randomPrompt}`);
       }
 
-      // Notify clients to transition to the answer phase
       io.to(roomCode).emit("start-answer-phase");
       console.log(`⏳ Starting answer phase for room ${roomCode}...`);
-      startAnswerPhase(io, roomCode, gameStates, rooms); // Pass `rooms` here
+      startAnswerPhase(io, roomCode, gameStates, rooms);
     }
-  }, 1000);
-
-  // Store the timer reference in the game state
-  gameState.promptTimer = timerInterval;
+  );
 }
 
 // ############################### ENDING GAME ###############################
@@ -255,24 +234,18 @@ function handleRestartGame(socket, io, rooms, gameStates) {
   console.log(`✅ Room ${roomCode} has been reset and is open for new players.`);
 }
 
+
 // ############################### HANDLING ANSWER SUBMISSION ###############################
 // This function handles the submission of answers by players during the answer phase.
 async function handleSubmitAnswer(socket, io, rooms, gameStates, data) {
-  console.log("Data received on server:", data);
+  const roomCode = socket.roomCode || data.roomCode; // Support both manual and auto-submissions
+  const { playerName, answer } = data;
 
-  const roomCode = socket.roomCode;
-  console.log(`Room code from socket: ${roomCode}`);
+  console.log("Data received on server:", data);
 
   if (!roomCode || !rooms[roomCode]) {
     console.log(`❌ Submit answer failed: Room ${roomCode} not found.`);
-    socket.emit("error-message", "Room not found.");
-    return;
-  }
-
-  const { playerName, answer } = data;
-
-  if (!playerName) {
-    console.log("❌ Submit answer failed: playerName is not provided.");
+    if (socket) socket.emit("error-message", "Room not found.");
     return;
   }
 
@@ -284,6 +257,13 @@ async function handleSubmitAnswer(socket, io, rooms, gameStates, data) {
 
   if (!gameState.answers) {
     gameState.answers = [];
+  }
+
+  // Check if the player has already submitted to avoid duplicates
+  const existingAnswer = gameState.answers.find((ans) => ans.playerName === playerName);
+  if (existingAnswer) {
+    console.log(`🛑 Duplicate submission detected for player ${playerName}. Ignoring.`);
+    return; // Ignore duplicate submissions
   }
 
   // Find the player's team from the gameState
@@ -298,28 +278,44 @@ async function handleSubmitAnswer(socket, io, rooms, gameStates, data) {
 
   console.log(`📝 Answer received from ${playerName} (Team: ${player.team}): "${sanitizedAnswer}" in room ${roomCode}`);
 
-  io.to(roomCode).emit("player-submitted", { playerId: socket.id });
+  io.to(roomCode).emit("player-submitted", { playerId: socket.id || playerName }); // Use playerName for auto-submissions
 
   const allPlayersAnswered = gameState.answers.length === rooms[roomCode].players.length;
   console.log(`All players answered: ${allPlayersAnswered}`);
 
+  // If all players have answered, proceed to AI processing
   if (allPlayersAnswered) {
+    if (gameState.answerPhaseTimer) {
+      clearInterval(gameState.answerPhaseTimer);
+      gameState.answerPhaseTimer = null;
+      console.log(`✅ Cleared answer phase timer for room ${roomCode}`);
+    }
+
     const hostId = rooms[roomCode].hostId;
-    const prompt = gameState.prompt; // Retrieve the prompt from gameState
-    console.log("📜 Prompt used for story generation:", prompt);
+    const prompt = gameState.prompt;
 
     try {
       const story = await generateStory(prompt, gameState.answers);
-
-      // Send the generated story to the host
-      io.to(hostId).emit("story-generated", { story });
       console.log(`📖 Generated Story for room ${roomCode}: ${story}`);
 
-      io.to(roomCode).emit("answer-phase-ended");
-      console.log(`✅ All players submitted answers, story generated for room ${roomCode}`);
+      io.to(hostId).emit("story-generated", { story });
+
+      // Evaluate answers and assign points
+      const evaluation = await evaluateAnswers(prompt, gameState.answers, story, gameState.players);
+      console.log("🏆 Evaluation Results:", evaluation);
+
+      // Update game state with evaluated players
+      gameState.players = evaluation.players;
+
+      // Broadcast evaluation results to all clients
+      io.to(roomCode).emit("evaluation-results", evaluation);
+
+      // Notify clients that the answer phase has ended
+      io.to(roomCode).emit("answer-phase-ended", { nextRoundAvailable: true });
+      console.log(`✅ All players submitted answers, story generated, and points assigned for room ${roomCode}`);
     } catch (error) {
-      console.error("❌ Error generating or sending story:", error);
-      io.to(hostId).emit("error-message", "Failed to generate story. Please try again.");
+      console.error("❌ Error generating or evaluating story:", error);
+      io.to(hostId).emit("error-message", "Failed to process the round. Please try again.");
     }
   }
 }
@@ -331,40 +327,47 @@ function startAnswerPhase(io, roomCode, gameStates, rooms) {
   const timerDuration = 35; // 35 seconds for the answer phase
   let timeLeft = timerDuration;
 
-  const timerInterval = setInterval(() => {
+  const gameState = gameStates[roomCode];
+  if (!gameState) {
+    console.error(`❌ Game state not found for room ${roomCode}`);
+    return;
+  }
+
+  // Timer logic
+  gameState.answerPhaseTimer = setInterval(() => {
     timeLeft -= 1;
     io.to(roomCode).emit("answer-timer-update", timeLeft);
 
-    const gameState = gameStates[roomCode];
-    if (!gameState) {
-      clearInterval(timerInterval);
-      return;
-    }
-
-    // Check if all players have submitted their answers
-    const allPlayersAnswered = gameState.answers.length === rooms[roomCode].players.length;
-    if (allPlayersAnswered) {
-      console.log(`✅ All players have submitted answers. Ending answer timer early for room ${roomCode}.`);
-      clearInterval(timerInterval);
-      gameState.answerPhaseTimer = null; // Clear the timer reference
-      io.to(roomCode).emit("answer-phase-ended"); // Notify clients that the phase has ended
-      return;
-    }
-
     if (timeLeft <= 0) {
-      clearInterval(timerInterval);
+      clearInterval(gameState.answerPhaseTimer);
+      gameState.answerPhaseTimer = null;
 
-      // Notify all clients that the timer has ended
-      io.to(roomCode).emit("timer-ended");
       console.log(`✅ Timer ended for answer phase in room ${roomCode}`);
+
+      const playersWithoutAnswers = rooms[roomCode].players.filter(
+        (player) => !gameState.answers.some((answer) => answer.playerName === player.name)
+      );
+
+      // Auto-submit answers for players who haven't submitted
+      playersWithoutAnswers.forEach((player) => {
+        const autoSubmission = { playerName: player.name, answer: "<No answer provided>" };
+        handleSubmitAnswer(
+          { roomCode, playerName: player.name },
+          io,
+          rooms,
+          gameStates,
+          autoSubmission
+        );
+      });
+
+      // Check if all players have answered
+      const allPlayersAnswered = gameState.answers.length === rooms[roomCode].players.length;
+      console.log(`All players answered: ${allPlayersAnswered}`);
+
+      // Notify clients that the answer phase has ended
+      io.to(roomCode).emit("answer-phase-ended", { nextRoundAvailable: true });
     }
   }, 1000);
-
-  // Store the timer reference in the game state (optional for cleanup or debugging)
-  const gameState = gameStates[roomCode];
-  if (gameState) {
-    gameState.answerPhaseTimer = timerInterval;
-  }
 }
 
 // ############################### GENERATING STORY ###############################
@@ -490,84 +493,7 @@ async function evaluateAnswers(prompt, responses, story, players) {
   }
 }
 
-// ############################### HANDLING ANSWER SUBMISSION ###############################
-// This function handles the submission of answers by players during the answer phase.
-async function handleSubmitAnswer(socket, io, rooms, gameStates, data) {
-  console.log("Data received on server:", data);
 
-  const roomCode = socket.roomCode;
-  console.log(`Room code from socket: ${roomCode}`);
-
-  if (!roomCode || !rooms[roomCode]) {
-    console.log(`❌ Submit answer failed: Room ${roomCode} not found.`);
-    socket.emit("error-message", "Room not found.");
-    return;
-  }
-
-  const { playerName, answer } = data;
-
-  const gameState = gameStates[roomCode];
-  if (!gameState) {
-    console.log(`❌ Submit answer failed: Game state for room ${roomCode} not found.`);
-    return;
-  }
-
-  if (!gameState.answers) {
-    gameState.answers = [];
-  }
-
-  // Attempt to find the player by playerName or socket ID
-  const player = gameState.players.find((p) => p.name === playerName);
-  if (!player) {
-    console.log(`❌ Submit answer failed: Player not found in game state.`);
-    return;
-  }
-
-  const sanitizedAnswer = answer.trim() || "<No answer provided>";
-  gameState.answers.push({ playerName: player.name, answer: sanitizedAnswer, team: player.team });
-
-  console.log(`📝 Answer received from ${player.name} (Team: ${player.team}): "${sanitizedAnswer}" in room ${roomCode}`);
-
-  io.to(roomCode).emit("player-submitted", { playerId: socket.id });
-
-  const allPlayersAnswered = gameState.answers.length === rooms[roomCode].players.length;
-  console.log(`All players answered: ${allPlayersAnswered}`);
-
-  // If all players have answered, clear the answer phase timer and proceed
-  if (allPlayersAnswered && gameState.answerPhaseTimer) {
-    clearInterval(gameState.answerPhaseTimer);
-    gameState.answerPhaseTimer = null;
-    console.log(`✅ Cleared answer phase timer for room ${roomCode}`);
-  }
-
-  if (allPlayersAnswered) {
-    const hostId = rooms[roomCode].hostId;
-    const prompt = gameState.prompt;
-
-    try {
-      const story = await generateStory(prompt, gameState.answers);
-      console.log(`📖 Generated Story for room ${roomCode}: ${story}`);
-
-      io.to(hostId).emit("story-generated", { story });
-
-      // Evaluate answers and assign points
-      const evaluation = await evaluateAnswers(prompt, gameState.answers, story, gameState.players);
-      console.log("🏆 Evaluation Results:", evaluation);
-
-      // Update game state with evaluated players
-      gameState.players = evaluation.players;
-
-      // Broadcast evaluation results to all clients
-      io.to(roomCode).emit("evaluation-results", evaluation);
-
-      io.to(roomCode).emit("answer-phase-ended", { nextRoundAvailable: true });
-      console.log(`✅ All players submitted answers, story generated, and points assigned for room ${roomCode}`);
-    } catch (error) {
-      console.error("❌ Error generating or evaluating story:", error);
-      io.to(hostId).emit("error-message", "Failed to process the round. Please try again.");
-    }
-  }
-}
 
 // ############################### HANDLING START NEXT ROUND ###############################
 // This function handles the transition to the next round of the game.
