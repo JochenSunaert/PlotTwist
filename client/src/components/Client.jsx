@@ -102,8 +102,10 @@ const Client = () => {
     };
 
     const handleStartAnswerPhase = () => {
+        console.log("Starting answer phase.");
       setAnswerPhase(true);
       setAnswersSubmitted(false);
+        setAnswer(""); 
     };
 
     const handleAnswerTimerUpdate = (timeLeft) => setAnswerTimer(timeLeft);
@@ -117,6 +119,7 @@ const Client = () => {
     };
 
     const handleNextRound = ({ currentRound, totalRounds, promptPlayerName }) => {
+        console.log("Next round event received. Clearing answer.");
       setCurrentRound(currentRound);
       setTotalRounds(totalRounds);
       setPromptPlayerName(promptPlayerName);

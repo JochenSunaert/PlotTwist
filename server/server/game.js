@@ -109,7 +109,7 @@ function startRound(io, roomCode, gameStates, rooms, roundNumber) {
   io.to(roomCode).emit("prompt-selection", { playerName: promptProvider.name });
 
   gameState.promptTimer = startTimer(
-    25,
+    125,
     (timeLeft) => {
       console.log(`⏳ Timer: ${timeLeft}s remaining for room ${roomCode}`);
       io.to(roomCode).emit("timer-update", timeLeft);
@@ -324,7 +324,7 @@ async function handleSubmitAnswer(socket, io, rooms, gameStates, data) {
 // This function starts the answer phase timer and checks for player submissions.
 // It emits updates to the clients and handles the end of the phase.
 function startAnswerPhase(io, roomCode, gameStates, rooms) {
-  const timerDuration = 35; // 35 seconds for the answer phase
+  const timerDuration = 125; // 35 seconds for the answer phase
   let timeLeft = timerDuration;
 
   const gameState = gameStates[roomCode];
