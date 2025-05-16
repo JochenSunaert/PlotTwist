@@ -36,7 +36,6 @@ PlotTwist is a multiplayer quiz/party game built with React (frontend) and Node.
 ### Prerequisites
 
 - Node.js installed  
-- npm or yarn package manager
 
 ### Steps
 
@@ -45,7 +44,7 @@ PlotTwist is a multiplayer quiz/party game built with React (frontend) and Node.
 ```bash
 git clone https://github.com/JochenSunaert/PlotTwist.git
 cd PlotTwist
-````
+
 
 2. Install dependencies for both client and server:
 
@@ -54,21 +53,21 @@ cd client
 npm install
 cd ../server
 npm install
-```
+
 
 3. Start the backend server:
 
 ```bash
 cd server
 npm start
-```
+
 
 4. Start the frontend development server (in another terminal):
 
 ```bash
 cd client
 npm run dev
-```
+
 
 5. Open your browser at `http://localhost:5173` (or port shown by Vite) to use the app.
 
@@ -91,7 +90,7 @@ npm run dev
   });
 
   export default socket;
-  ```
+
 
 * **React Components**:
   Components handle UI for player login, room joining, question answering, and live updates via WebSocket events.
