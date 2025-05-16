@@ -15,12 +15,12 @@ PlotTwist is a multiplayer quiz/party game built with React (frontend) and Node.
 
 ## 🧩 Project Structure
 
-```
+
 
 /client    - React frontend application
 /server    - Node.js backend server with WebSocket logic
 
-````
+
 
 - **client**:  
   - Uses React with Vite as the build tool.  
