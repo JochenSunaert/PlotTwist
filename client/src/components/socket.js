@@ -1,10 +1,12 @@
 // socket.js
 import { io } from "socket.io-client";
 
-const socket = io("http://localhost:3001", {
-  autoConnect: true, // Automatically connect when the client loads
-  reconnection: true, // Enable reconnection
-  reconnectionAttempts: 5, // Limit reconnection attempts
+// Use the VITE_API_URL environment variable or fallback to localhost
+const socket = io("https://plottwist-w5lc.onrender.com" || "http://localhost:3001", {
+  autoConnect: true,
+  reconnection: true,
+  reconnectionAttempts: 5,
+    transports: ["websocket"], // force WebSocket transport (optional but helpful)
 });
 
 export default socket;
