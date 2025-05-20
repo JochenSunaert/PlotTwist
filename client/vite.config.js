@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: '/plottwist/', // 👈 Important: tells Vite to use /plottwist as the base URL
   plugins: [react()],
   server: {
     proxy: {
