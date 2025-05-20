@@ -20,6 +20,7 @@ const Client = () => {
   const [answerPhase, setAnswerPhase] = useState(false);
   const [answersSubmitted, setAnswersSubmitted] = useState(false);
   const [answerTimer, setAnswerTimer] = useState(null);
+  const [gamePhase, setGamePhase] = useState("lobby");
 
   const answerRef = useRef(answer);
   const answersSubmittedRef = useRef(answersSubmitted);
@@ -56,9 +57,7 @@ const Client = () => {
   };
 
   const handleSubmitAnswer = useCallback(() => {
-    if (answersSubmittedRef.current) {
-      return;
-    }
+    if (answersSubmittedRef.current) return;
     const cleanAnswer = answerRef.current.trim() || "<No answer provided>";
     socket.emit("submit-answer", { playerName: name, answer: cleanAnswer });
     setAnswersSubmitted(true);
@@ -68,6 +67,7 @@ const Client = () => {
     const handleJoinedRoom = () => {
       setJoinedRoom(true);
       setErrorMessage("");
+      setGamePhase("lobby");
     };
 
     const handleErrorMessage = (message) => setErrorMessage(message);
@@ -76,11 +76,15 @@ const Client = () => {
       setTeam(team);
     };
 
-    const handleGameStarted = () => setGameStarted(true);
+    const handleGameStarted = () => {
+      setGameStarted(true);
+      setGamePhase("waiting");
+    };
 
     const handlePromptPlayer = ({ isPromptPlayer }) => {
       setIsPromptPlayer(isPromptPlayer);
       setWaitingForPrompt(!isPromptPlayer);
+      setGamePhase(isPromptPlayer ? "prompt" : "waiting");
     };
 
     const handlePromptSelection = ({ playerName }) => {
@@ -91,6 +95,7 @@ const Client = () => {
       setSubmittedPrompt(prompt || "Prompt is empty");
       setWaitingForPrompt(false);
       setIsPromptPlayer(false);
+      setGamePhase("waiting");
     };
 
     const handleTimerUpdate = (timeLeft) => setTimer(timeLeft);
@@ -102,10 +107,10 @@ const Client = () => {
     };
 
     const handleStartAnswerPhase = () => {
-        console.log("Starting answer phase.");
       setAnswerPhase(true);
       setAnswersSubmitted(false);
-        setAnswer(""); 
+      setAnswer("");
+      setGamePhase("answer");
     };
 
     const handleAnswerTimerUpdate = (timeLeft) => setAnswerTimer(timeLeft);
@@ -116,10 +121,10 @@ const Client = () => {
       if (!answersSubmittedRef.current) {
         handleSubmitAnswer();
       }
+      setGamePhase("waiting");
     };
 
     const handleNextRound = ({ currentRound, totalRounds, promptPlayerName }) => {
-        console.log("Next round event received. Clearing answer.");
       setCurrentRound(currentRound);
       setTotalRounds(totalRounds);
       setPromptPlayerName(promptPlayerName);
@@ -127,6 +132,7 @@ const Client = () => {
       setAnswer("");
       setAnswersSubmitted(false);
       setAnswerPhase(false);
+      setGamePhase("waiting");
     };
 
     const handleGameEnded = () => {
@@ -139,15 +145,16 @@ const Client = () => {
       setSubmittedPrompt("");
       setAnswer("");
       setAnswersSubmitted(false);
+      setGamePhase("lobby");
     };
 
     const handleRoundReset = () => {
       setSubmittedPrompt("");
       setIsPromptPlayer(false);
       setWaitingForPrompt(true);
+      setGamePhase("waiting");
     };
 
-    // Register socket listeners
     socket.on("joined-room", handleJoinedRoom);
     socket.on("error-message", handleErrorMessage);
     socket.on("team-assigned", handleTeamAssigned);
@@ -187,7 +194,8 @@ const Client = () => {
     <div style={{ padding: "2rem" }}>
       <h1>Client Screen</h1>
       <p>{team}</p>
-      {!joinedRoom ? (
+
+      {gamePhase === "lobby" && !joinedRoom && (
         <>
           <input
             type="text"
@@ -206,48 +214,58 @@ const Client = () => {
           <button onClick={handleJoin}>Join Room</button>
           {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
         </>
-      ) : !gameStarted ? (
+      )}
+
+      {gamePhase === "lobby" && joinedRoom && !gameStarted && (
         <h2>✅ You joined room {roomCode.toUpperCase()}</h2>
-      ) : (
+      )}
+
+      {gameStarted && (
         <>
           <h2>🎉 Game Started!</h2>
           <h3>Round {currentRound + 1} of {totalRounds}</h3>
           {team && <p>🧑‍🤝‍🧑 Your team: <strong>{team}</strong></p>}
-          {submittedPrompt ? (
-            <p>📜 The prompt is: {submittedPrompt}</p>
-          ) : waitingForPrompt ? (
-            <p>⏳ Waiting for {promptPlayerName} to submit a prompt...</p>
-          ) : isPromptPlayer ? (
-            <>
-              <h3>You are selecting the prompt!</h3>
-              <textarea
-                placeholder="Write your own prompt or choose one."
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                style={{ width: "100%", height: "100px", marginBottom: "1rem" }}
-              />
-              <button onClick={handleRandomPrompt} style={{ marginRight: "1rem" }}>
-                Random
-              </button>
-              <button onClick={handleSubmitPrompt}>Submit Prompt</button>
-              {timer !== null && <p>⏳ Time left: {timer} seconds</p>}
-            </>
-          ) : null}
-          {answerPhase && (
-            <>
-              <textarea
-                placeholder="Write your answer here..."
-                value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
-                disabled={answersSubmitted}
-                style={{ width: "100%", height: "100px", marginBottom: "1rem" }}
-              />
-              <button onClick={handleSubmitAnswer} disabled={answersSubmitted}>
-                {answersSubmitted ? "Answer Submitted" : "Submit Answer"}
-              </button>
-              {answerTimer !== null && <p>⏳ Answer Timer: {answerTimer} seconds</p>}
-            </>
-          )}
+        </>
+      )}
+
+      {gamePhase === "prompt" && isPromptPlayer && (
+        <>
+          <h3>You are selecting the prompt!</h3>
+          <textarea
+            placeholder="Write your own prompt or choose one."
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            style={{ width: "100%", height: "100px", marginBottom: "1rem" }}
+          />
+          <button onClick={handleRandomPrompt} style={{ marginRight: "1rem" }}>
+            Random
+          </button>
+          <button onClick={handleSubmitPrompt}>Submit Prompt</button>
+          {timer !== null && <p>⏳ Time left: {timer} seconds</p>}
+        </>
+      )}
+
+      {gamePhase === "waiting" && waitingForPrompt && (
+        <p>⏳ Waiting for {promptPlayerName} to submit a prompt...</p>
+      )}
+
+      {submittedPrompt && gamePhase !== "prompt" && (
+        <p>📜 The prompt is: {submittedPrompt}</p>
+      )}
+
+      {gamePhase === "answer" && (
+        <>
+          <textarea
+            placeholder="Write your answer here..."
+            value={answer}
+            onChange={(e) => setAnswer(e.target.value)}
+            disabled={answersSubmitted}
+            style={{ width: "100%", height: "100px", marginBottom: "1rem" }}
+          />
+          <button onClick={handleSubmitAnswer} disabled={answersSubmitted}>
+            {answersSubmitted ? "Answer Submitted" : "Submit Answer"}
+          </button>
+          {answerTimer !== null && <p>⏳ Answer Timer: {answerTimer} seconds</p>}
         </>
       )}
     </div>
