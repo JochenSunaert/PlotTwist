@@ -17,6 +17,8 @@ const Host = () => {
   const [currentRound, setCurrentRound] = useState(1);
   const [isNextRoundReady, setIsNextRoundReady] = useState(false);
   const [finalResults, setFinalResults] = useState(null);
+  const [gamePhase, setGamePhase] = useState("waiting");
+  const [storyAcknowledged, setStoryAcknowledged] = useState(false);
 
   const handleRestartGame = () => {
     console.log("🔄 Restarting game...");
@@ -43,8 +45,14 @@ const Host = () => {
     socket.on("room-created", (code) => setRoomCode(code));
     socket.on("players-update", (players) => setPlayers(players));
     socket.on("game-started", () => setGameStarted(true));
-    socket.on("prompt-selection", ({ playerName }) => setPromptPlayerName(playerName));
-    socket.on("prompt-submitted", ({ prompt }) => setSubmittedPrompt(prompt));
+socket.on("prompt-selection", ({ playerName }) => {
+  setPromptPlayerName(playerName);
+  setGamePhase("prompt");
+});
+socket.on("prompt-submitted", ({ prompt }) => {
+  setSubmittedPrompt(prompt);
+  setGamePhase("answer");
+});
     socket.on("error-message", (msg) => setErrorMessage(msg));
 
     socket.on("timer-update", setTimer);
@@ -69,38 +77,46 @@ const Host = () => {
     socket.on("answers-collected", ({ answers }) => {
       setAnswers(answers);
       console.log("📨 Answers collected:", answers);
+        setGamePhase("story");
     });
 
-    socket.on("story-generated", ({ story }) => {
-      console.log("📖 Story received:", story);
-      setStory(story);
-    });
+socket.on("story-generated", ({ story }) => {
+  console.log("📖 Story received:", story);
+  setStory(story);
+  setGamePhase("story"); // Show the story phase
+});
 
-    socket.on("evaluation-results", (data) => {
-      setEvaluationResults({
-        winningTeam: data.winningTeam || "Tie",
-        impactfulPlayer: data.impactfulPlayer || "None",
-        originalPlayer: data.originalPlayer || "None",
-        players: data.players || [],
-      });
-      setIsNextRoundReady(true);
-    });
+
+socket.on("evaluation-results", (data) => {
+  setEvaluationResults({
+    winningTeam: data.winningTeam || "Tie",
+    impactfulPlayer: data.impactfulPlayer || "None",
+    originalPlayer: data.originalPlayer || "None",
+    players: data.players || [],
+  });
+  setIsNextRoundReady(true);
+
+});
+
+
 
     socket.on("answer-phase-ended", ({ nextRoundAvailable }) => {
       setAnswerTimer(null);
       setIsNextRoundReady(nextRoundAvailable);
     });
 
-    socket.on("round-reset", ({ roundNumber }) => {
-      setCurrentRound(roundNumber);
-      setSubmittedPrompt("");
-      setAnswers([]);
-      setSubmittedPlayers([]);
-      setStory("");
-      setEvaluationResults(null);
-      setTimer(null);
-      setAnswerTimer(null);
-    });
+socket.on("round-reset", ({ roundNumber }) => {
+  setCurrentRound(roundNumber);
+  setSubmittedPrompt("");
+  setAnswers([]);
+  setSubmittedPlayers([]);
+  setStory("");
+  setEvaluationResults(null);
+  setTimer(null);
+  setAnswerTimer(null);
+  setGamePhase("prompt");
+});
+
 
     socket.on("game-ended", ({ placements }) => {
       console.log("🏁 Game ended with results:", placements);
@@ -134,6 +150,7 @@ const Host = () => {
   };
 
   const handleNextRound = () => {
+      setStoryAcknowledged(false);
     const nextRound = currentRound + 1;
     console.log(`🔁 Requesting next round (${nextRound})`);
     socket.emit("start-next-round", { round: nextRound });
@@ -178,6 +195,7 @@ return (
 
     {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
 
+    {/* Before game starts */}
     {!gameStarted ? (
       finalResults ? (
         renderFinalResults()
@@ -189,18 +207,21 @@ return (
     ) : (
       <>
         {/* Game Phase: Prompt */}
-        <div style={{ marginTop: "2rem", borderTop: "1px solid #ccc", paddingTop: "1rem" }}>
-          <h2>🧠 Round {currentRound}</h2>
-          <h3>Prompt Phase</h3>
-          {promptPlayerName && <p>✍️ {promptPlayerName} is choosing the prompt...</p>}
-          {timer !== null && <p>⏳ Time left to submit prompt: {timer}s</p>}
-          {submittedPrompt && <p>✅ Prompt submitted: <strong>{submittedPrompt}</strong></p>}
-        </div>
+        {gamePhase === "prompt" && (
+          <div style={{ marginTop: "2rem", borderTop: "1px solid #ccc", paddingTop: "1rem" }}>
+            <h2>🧠 Round {currentRound}</h2>
+            <h3>Prompt Phase</h3>
+            {promptPlayerName && <p>✍️ {promptPlayerName} is choosing the prompt...</p>}
+            {timer !== null && <p>⏳ Time left to submit prompt: {timer}s</p>}
+          </div>
+        )}
 
         {/* Game Phase: Answer */}
-        {submittedPrompt && (
+        {gamePhase === "answer" && (
           <div style={{ marginTop: "2rem", borderTop: "1px solid #ccc", paddingTop: "1rem" }}>
+            <h2>🧠 Round {currentRound}</h2>
             <h3>📝 Answer Phase</h3>
+            <p>✅ Prompt submitted: <strong>{submittedPrompt}</strong></p>
             {answerTimer !== null && <p>⏳ Time left to answer: {answerTimer}s</p>}
             {answers.length > 0 && (
               <ul>
@@ -215,36 +236,49 @@ return (
         )}
 
         {/* Game Phase: Story Reveal */}
-        {story && (
-          <div style={{ marginTop: "2rem", borderTop: "1px solid #ccc", paddingTop: "1rem" }}>
-            <h3>📖 AI Generated Story</h3>
-            <p>{story}</p>
-          </div>
-        )}
+{/* Game Phase: Story Reveal */}
+{gamePhase === "story" && (
+  <div style={{ marginTop: "2rem", borderTop: "1px solid #ccc", paddingTop: "1rem" }}>
+    <h2>🧠 Round {currentRound}</h2>
+    <h3>📖 AI Generated Story</h3>
+    <p>{story}</p>
+    <button
+      onClick={() => {
+        setStoryAcknowledged(true);
+        setGamePhase("evaluation"); // ⬅ Move to evaluation only here
+      }}
+      style={{ marginTop: "1rem" }}
+    >
+      ✅ Continue to Results
+    </button>
+  </div>
+)}
 
-        {/* Game Phase: Evaluation */}
-        {evaluationResults && (
-          <div style={{ marginTop: "2rem", borderTop: "1px solid #ccc", paddingTop: "1rem" }}>
-            <h3>🏆 Evaluation Results</h3>
-            <p><strong>Winning Team:</strong> {evaluationResults.winningTeam}</p>
-            <p><strong>Most Impactful Player:</strong> {evaluationResults.impactfulPlayer}</p>
-            <p><strong>Most Original Player:</strong> {evaluationResults.originalPlayer}</p>
-            <ul>
-              {evaluationResults.players.map((player, index) => (
-                <li key={index}>
-                  {player.name} ({player.team}) - {player.score} points
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
 
-        {/* Game Phase: Ready for Next Round */}
-        {isNextRoundReady && (
-          <div style={{ marginTop: "2rem" }}>
-            <button onClick={handleNextRound}>🔁 Start Next Round</button>
-          </div>
-        )}
+
+        {/* Game Phase: Evaluation / Results */}
+{(gamePhase === "evaluation" || gamePhase === "results") && evaluationResults && storyAcknowledged && (
+  <div style={{ marginTop: "2rem", borderTop: "1px solid #ccc", paddingTop: "1rem" }}>
+    <h2>🧠 Round {currentRound}</h2>
+    <h3>🏆 Evaluation Results</h3>
+    <p><strong>Winning Team:</strong> {evaluationResults.winningTeam}</p>
+    <p><strong>Most Impactful Player:</strong> {evaluationResults.impactfulPlayer}</p>
+    <p><strong>Most Original Player:</strong> {evaluationResults.originalPlayer}</p>
+    <ul>
+      {evaluationResults.players.map((player, index) => (
+        <li key={index}>
+          {player.name} ({player.team}) - {player.score} points
+        </li>
+      ))}
+    </ul>
+    {isNextRoundReady && (
+      <button onClick={handleNextRound} style={{ marginTop: "1rem" }}>
+        🔁 Start Next Round
+      </button>
+    )}
+  </div>
+)}
+
       </>
     )}
   </div>

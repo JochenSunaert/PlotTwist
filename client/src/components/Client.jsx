@@ -195,79 +195,81 @@ const Client = () => {
       <h1>Client Screen</h1>
       <p>{team}</p>
 
-      {gamePhase === "lobby" && !joinedRoom && (
-        <>
-          <input
-            type="text"
-            placeholder="Your name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            style={{ marginRight: "1rem" }}
-          />
-          <input
-            type="text"
-            placeholder="Room code"
-            value={roomCode}
-            onChange={(e) => setRoomCode(e.target.value)}
-            style={{ marginRight: "1rem" }}
-          />
-          <button onClick={handleJoin}>Join Room</button>
-          {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
-        </>
-      )}
+{gamePhase === "lobby" && !joinedRoom && (
+  <>
+    <input
+      type="text"
+      placeholder="Your name"
+      value={name}
+      onChange={(e) => setName(e.target.value)}
+      style={{ marginRight: "1rem" }}
+    />
+    <input
+      type="text"
+      placeholder="Room code"
+      value={roomCode}
+      onChange={(e) => setRoomCode(e.target.value)}
+      style={{ marginRight: "1rem" }}
+    />
+    <button onClick={handleJoin}>Join Room</button>
+    {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
+  </>
+)}
 
-      {gamePhase === "lobby" && joinedRoom && !gameStarted && (
-        <h2>✅ You joined room {roomCode.toUpperCase()}</h2>
-      )}
+{gamePhase === "lobby" && joinedRoom && !gameStarted && (
+  <h2>✅ You joined room {roomCode.toUpperCase()}</h2>
+)}
 
-      {gameStarted && (
-        <>
-          <h2>🎉 Game Started!</h2>
-          <h3>Round {currentRound + 1} of {totalRounds}</h3>
-          {team && <p>🧑‍🤝‍🧑 Your team: <strong>{team}</strong></p>}
-        </>
-      )}
+{gamePhase === "start" && (
+  <>
+    <h2>🎉 Game Started!</h2>
+    <h3>Round {currentRound + 1} of {totalRounds}</h3>
+    {team && <p>🧑‍🤝‍🧑 Your team: <strong>{team}</strong></p>}
+  </>
+)}
 
-      {gamePhase === "prompt" && isPromptPlayer && (
-        <>
-          <h3>You are selecting the prompt!</h3>
-          <textarea
-            placeholder="Write your own prompt or choose one."
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            style={{ width: "100%", height: "100px", marginBottom: "1rem" }}
-          />
-          <button onClick={handleRandomPrompt} style={{ marginRight: "1rem" }}>
-            Random
-          </button>
-          <button onClick={handleSubmitPrompt}>Submit Prompt</button>
-          {timer !== null && <p>⏳ Time left: {timer} seconds</p>}
-        </>
-      )}
+{gamePhase === "prompt" && isPromptPlayer && (
+  <>
+    <h3>You are selecting the prompt!</h3>
+    <textarea
+      placeholder="Write your own prompt or choose one."
+      value={prompt}
+      onChange={(e) => setPrompt(e.target.value)}
+      style={{ width: "100%", height: "100px", marginBottom: "1rem" }}
+    />
+    <button onClick={handleRandomPrompt} style={{ marginRight: "1rem" }}>
+      Random
+    </button>
+    <button onClick={handleSubmitPrompt}>Submit Prompt</button>
+    {timer !== null && <p>⏳ Time left: {timer} seconds</p>}
+  </>
+)}
 
-      {gamePhase === "waiting" && waitingForPrompt && (
-        <p>⏳ Waiting for {promptPlayerName} to submit a prompt...</p>
-      )}
+{gamePhase === "waiting" && waitingForPrompt && (
+  <p>⏳ Waiting for {promptPlayerName} to submit a prompt...</p>
+)}
 
-      {submittedPrompt && gamePhase !== "prompt" && (
-        <p>📜 The prompt is: {submittedPrompt}</p>
-      )}
+{gamePhase === "waiting" && submittedPrompt && (
+  <p>📜 The prompt is: {submittedPrompt}</p>
+)}
 
-      {gamePhase === "answer" && (
-        <>
-          <textarea
-            placeholder="Write your answer here..."
-            value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
-            disabled={answersSubmitted}
-            style={{ width: "100%", height: "100px", marginBottom: "1rem" }}
-          />
-          <button onClick={handleSubmitAnswer} disabled={answersSubmitted}>
-            {answersSubmitted ? "Answer Submitted" : "Submit Answer"}
-          </button>
-          {answerTimer !== null && <p>⏳ Answer Timer: {answerTimer} seconds</p>}
-        </>
-      )}
+{gamePhase === "answer" && (
+  <>
+    <p>📜 The prompt is: {submittedPrompt}</p>
+    <textarea
+      placeholder="Write your answer here..."
+      value={answer}
+      onChange={(e) => setAnswer(e.target.value)}
+      disabled={answersSubmitted}
+      style={{ width: "100%", height: "100px", marginBottom: "1rem" }}
+    />
+    <button onClick={handleSubmitAnswer} disabled={answersSubmitted}>
+      {answersSubmitted ? "Answer Submitted" : "Submit Answer"}
+    </button>
+    {answerTimer !== null && <p>⏳ Answer Timer: {answerTimer} seconds</p>}
+  </>
+)}
+
     </div>
   );
 };
