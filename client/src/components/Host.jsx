@@ -4,7 +4,7 @@ import socket from "./socket"; // Shared socket instance
   const videos = {
     waiting: "/videos/motion_backgrounds2/Color-geometry-1_4k_1.mp4",
     prompt: "/videos/motion_backgrounds2/Color-geometry-2_4k_1.mp4",
-    answer: "/videos/motion_backgrounds2/Color-geometry-3_4k_1.mp4",
+    answer: "/videos/motion_backgrounds2/Color-geometry-8_4k_1.mp4",
     story: "/videos/motion_backgrounds2/Color-geometry-4_4k_1.mp4",
     evaluation: "/videos/motion_backgrounds2/Color-geometry-5_4k_1.mp4",
     final: "/videos/motion_backgrounds2/Color-geometry-6_4k_1.mp4",
@@ -182,7 +182,12 @@ return (
     <div className="host-container">
       {/* Top Black Bar */}
       <div className="top-bar">
-        <h1>Host Screen — Room: {roomCode || "Creating..."}</h1>
+        <div>
+          <div>
+              <h3>Join on your phone as <strong>player</strong>  {/*Room: {roomCode || "Creating..."}*/} </h3>
+              <h3>Your room code is:</h3>
+          </div>
+        </div>
       </div>
 
       {/* Background video */}
@@ -198,19 +203,20 @@ return (
 
       {/* Overlay UI container */}
       <div className="overlay-ui">
+        <div class="main">
         {!gameStarted && (
           <>
-            <h2>Room Code: {roomCode}</h2>
+            <h1 class="roomcode">{roomCode || "Creating..."}</h1>
             <h3>Players in Room:</h3>
             <ul className="players-list">
               {players.map((p) => (
                 <li key={p.id}>
                   {p.name}{" "}
-                  {submittedPlayers.includes(p.id) ? (
+                  {/*submittedPlayers.includes(p.id) ? (
                     <span className="submitted">✔️ Submitted</span>
                   ) : (
                     <span className="pending">⏳ Pending</span>
-                  )}
+                  )*/}
                 </li>
               ))}
             </ul>
@@ -224,7 +230,7 @@ return (
             renderFinalResults()
           ) : (
             <button onClick={handleStartGame} className="button">
-              🚀 Start Game
+            Everybody's in
             </button>
           )
         ) : (
@@ -302,6 +308,7 @@ return (
             )}
           </>
         )}
+      </div>
       </div>
     </div>
   );

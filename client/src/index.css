@@ -44,6 +44,10 @@ h1 {
   line-height: 1.1;
 }
 
+h3{
+    font-size: 1.4em;
+}
+
 button {
   border-radius: 8px;
   border: 1px solid transparent;
@@ -191,18 +195,18 @@ button:focus-visible {
 
 /* Buttons */
 .button {
-  margin-top: 2rem;
-  padding: 0.75rem 1.25rem;
-  background-color: #0066cc;
+  padding: 15px 50px 15px 50px;
+  background-color: black;
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 30px;
   cursor: pointer;
   font-size: 1rem;
+  font-weight: 700;
 }
 
 .button:hover {
-  background-color: #005bb5;
+  background-color: #333333;
 }
 
 /* Section wrapper for game phases */
@@ -285,13 +289,26 @@ button:focus-visible {
 
 
 .overlay-ui {
-    margin-top: 125px; 
   position: relative;
   z-index: 5;
-  padding-top: 4rem; 
   height: 100%;
   overflow-y: auto;
+  overflow-x: hidden;
+  display: grid;
+  align-items: center;
+  justify-items: center;
 }
+
+.main{
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  width: 100%;
+  margin-left: 10%;
+  margin-right: 10%;
+}
+
+
 
 .top-bar,
 .selection__topbar {
@@ -303,16 +320,45 @@ button:focus-visible {
   border-bottom: 1px solid #ccc; /* just for clarity */
 }
 
-/* Light theme support */
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+.top-bar > div{
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  width: 100%;
+}
+
+.top-bar h3{
+  font-size: 1.4em;
+  margin: 0;
+}
+
+.top-bar strong{
+  font-weight: 1200;
+  font-size: 1.2em;
+}
+
+.roomcode{
+  margin-top: 10%;
+  font-size: 6em;
+  align-self: center;
+  justify-self: center;
+ -webkit-text-stroke: #1a1a1a 1.5px;
+}
+
+.players-list{
+  color: black;
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  width: 80%;
+  grid-template-columns: repeat(4, 1fr);
+  grid-row-gap: 10px;
+}
+
+.players-list li{
+  background-color: white;
+  width: 90%;
+  padding: 20px 10px 20px 10px;
+  text-align: center;
+  border-radius: 40px;
 }

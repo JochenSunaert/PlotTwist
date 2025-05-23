@@ -3,7 +3,7 @@ import Host from "./components/Host";
 import Client from "./components/Client";
 
 const videos = {
-  client: "/videos/motion_backgrounds2/Color-geometry-1_4k_1.mp4",
+  client: "/videos/motion_backgrounds2/Color-geometry-5_4k_1.mp4",
   host: "/videos/motion_backgrounds2/Color-geometry-3_4k_1.mp4",
 };
 
