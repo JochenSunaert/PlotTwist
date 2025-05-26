@@ -1,13 +1,33 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap');
 /* Ensure all root elements take full height */
 html, body, #root {
   margin: 0;
   padding: 0;
   height: 100%;
 }
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Antique Olive Std Compact', sans-serif;
+}
+
+p, a, li, ul, button, input, textarea {
+    font-family: "Roboto Mono", monospace;
+  font-optical-sizing: auto;
+  font-weight: 100;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Antique Olive Std Compact';
+  font-style: normal;
+  font-weight: normal;
+  src: local('Antique Olive Std Compact'), url('./fonts/Antique-Olive-Std-Compact_3864.woff') format('woff');
+}
+
+
 
 /* Base styling */
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+    font-family: "Roboto Mono", monospace;
   line-height: 1.5;
   font-weight: 400;
 
@@ -85,6 +105,7 @@ button:focus-visible {
   height: 100vh;
   overflow: hidden;
   z-index: 0;
+  display:grid
 }
 
 .selection__video {
@@ -107,32 +128,70 @@ button:focus-visible {
   padding: 1rem;
   text-align: center;
   z-index: 2;
+  display: grid;
+}
+
+.selection__topbar h2{
+  display: grid;
+  text-align: center;
+  align-self: center;
+  justify-self: center;
+  font-size: 2.5em;
 }
 
 /* Overlay content */
 .selection__overlay {
   position: absolute;
-  top: 4rem;
-  left: 0;
-  width: 100%;
-  height: calc(100% - 4rem);
   background: rgba(0, 0, 0, 0.3);
-  display: flex;
+  display: grid;
   align-items: center;
-  justify-content: space-between;
+  justify-items: center;
   padding: 0 2rem;
   box-sizing: border-box;
   z-index: 1;
+  background-color: white;
+  min-width: 600px;
+  min-height: 400px;
+  align-self: center;
+  justify-self: center;
+}
+
+.selection__overlay h1 {
+  color: black;
 }
 
 .selection__arrow {
-  font-size: 2rem;
-  background: transparent;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 50px;
+  width: 50px;
+  background: black;
   border: none;
-  color: white;
+  border-radius: 8px;
   cursor: pointer;
   z-index: 3;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+
+.selection__arrow i {
+  color: white;
+  font-size: 1.5rem; 
+  line-height: 1;
+}
+
+
+.selection__arrow.left {
+  left: 5%;
+}
+
+.selection__arrow.right {
+  right: 5%;
+}
+
 
 .selection__role {
   font-size: 2rem;
@@ -313,11 +372,10 @@ button:focus-visible {
 .top-bar,
 .selection__topbar {
   height: 125px;         /* fixed height */
-  display: flex;
+  display: grid;
   align-items: center;  /* vertical center content */
   padding: 0 1rem;      /* horizontal padding */
   box-sizing: border-box;
-  border-bottom: 1px solid #ccc; /* just for clarity */
 }
 
 .top-bar > div{

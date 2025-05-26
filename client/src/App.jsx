@@ -33,7 +33,7 @@ const App = () => {
   return (
     <div className="selection">
       <div className="selection__topbar">
-        <h2>Choose Your Role</h2>
+        <h2>Choose Your path, meat sack!</h2>
       </div>
 
       <div className="selection__video-container">
@@ -44,21 +44,19 @@ const App = () => {
           loop
           className="selection__video"
         />
+           <button onClick={() => handleSwitch(-1)} className="selection__arrow left">
+    <i className="fas fa-arrow-left"></i>
+  </button>
 
-        <div className="selection__overlay">
-          <button onClick={() => handleSwitch(-1)} className="selection__arrow">
-            ←
-          </button>
-          <h1
-            className="selection__role"
-            onClick={() => handleSelectRole(currentRole)}
-          >
-            {currentRole.charAt(0).toUpperCase() + currentRole.slice(1)}
-          </h1>
-          <button onClick={() => handleSwitch(1)} className="selection__arrow">
-            →
-          </button>
-        </div>
+  <div className="selection__overlay">
+    <h1 onClick={() => handleSelectRole(currentRole)}>
+      {currentRole.charAt(0).toUpperCase() + currentRole.slice(1)}
+    </h1>
+  </div>
+
+  <button onClick={() => handleSwitch(1)} className="selection__arrow right">
+    <i className="fas fa-arrow-right"></i>
+  </button>
       </div>
     </div>
   );
