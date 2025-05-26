@@ -203,7 +203,7 @@ return (
 
       {/* Overlay UI container */}
       <div className="overlay-ui">
-        <div class="main">
+        <div className="main">
         {!gameStarted && (
           <>
             <h1 class="roomcode">{roomCode || "Creating..."}</h1>
