@@ -23,6 +23,11 @@ function startGame(socket, io, rooms, gameStates) {
     io.to(socket.id).emit("error-message", "Cannot start the game. No players in the room.");
     return;
   }
+  if (room.players.length < 2) {
+    console.log(`❌ Start game failed: Not enough players in room ${roomCode}. Minimum 2 required.`);
+    io.to(socket.id).emit("error-message", "Cannot start the game. At least 2 players are required.");
+    return;
+  }
 
   room.locked = true;
 
@@ -109,6 +114,7 @@ function startRound(io, roomCode, gameStates, rooms, roundNumber) {
   io.to(roomCode).emit("prompt-selection", { playerName: promptProvider.name });
 
   gameState.promptTimer = startTimer(
+    /*timertijd*/
     125,
     (timeLeft) => {
       console.log(`⏳ Timer: ${timeLeft}s remaining for room ${roomCode}`);
@@ -324,6 +330,7 @@ async function handleSubmitAnswer(socket, io, rooms, gameStates, data) {
 // This function starts the answer phase timer and checks for player submissions.
 // It emits updates to the clients and handles the end of the phase.
 function startAnswerPhase(io, roomCode, gameStates, rooms) {
+  /*timertijd */
   const timerDuration = 125; // 35 seconds for the answer phase
   let timeLeft = timerDuration;
 
@@ -344,9 +351,15 @@ function startAnswerPhase(io, roomCode, gameStates, rooms) {
 
       console.log(`✅ Timer ended for answer phase in room ${roomCode}`);
 
-      const playersWithoutAnswers = rooms[roomCode].players.filter(
-        (player) => !gameState.answers.some((answer) => answer.playerName === player.name)
-      );
+
+      if (!rooms[roomCode] || !rooms[roomCode].players) {
+  console.log(`⚠️ Room ${roomCode} no longer exists when checking for unanswered players.`);
+  return;
+}
+
+      const playersWithoutAnswers = rooms[roomCode].players.filter( (player) => !gameState.answers.some((answer) => answer.playerName === player.name));
+
+      
 
       // Auto-submit answers for players who haven't submitted
       playersWithoutAnswers.forEach((player) => {
@@ -501,6 +514,12 @@ function handleStartNextRound(socket, io, rooms, gameStates, data) {
   const roomCode = socket.roomCode;
 
   const gameState = gameStates[roomCode];
+
+  if (!gameStates[roomCode]) {
+  console.log(`⚠️ Game state for room ${roomCode} no longer exists.`);
+  return;
+}
+
   if (!gameState) {
     console.error(`❌ No game state found for room ${roomCode}.`);
     io.to(socket.id).emit("error-message", "Game state not found. Cannot start the next round.");

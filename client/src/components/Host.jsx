@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
 import socket from "./socket"; // Shared socket instance
+import { useNavigate } from 'react-router-dom';
+
+
+
+
+
 
   const videos = {
     waiting: "/videos/motion_backgrounds2/Color-geometry-1_4k_1.mp4",
@@ -12,6 +18,8 @@ import socket from "./socket"; // Shared socket instance
 
 
 const Host = () => {
+
+  const navigate = useNavigate();
   const [roomCode, setRoomCode] = useState("");
   const [players, setPlayers] = useState([]);
   const [gameStarted, setGameStarted] = useState(false);
@@ -29,6 +37,11 @@ const Host = () => {
   const [finalResults, setFinalResults] = useState(null);
   const [gamePhase, setGamePhase] = useState("waiting");
   const [storyAcknowledged, setStoryAcknowledged] = useState(false);
+
+
+    const handleBack = () => {
+    navigate('/'); // or '../app' depending on your route structure
+  };
 
   const handleRestartGame = () => {
     console.log("🔄 Restarting game...");
@@ -50,7 +63,8 @@ const Host = () => {
   };
 
   useEffect(() => {
-    if (!roomCode) socket.emit("create-room");
+
+    socket.emit("create-room");
 
     socket.on("room-created", (code) => setRoomCode(code));
     socket.on("players-update", (players) => setPlayers(players));
@@ -145,6 +159,7 @@ const Host = () => {
       socket.off("evaluation-results");
       socket.off("round-reset");
       socket.off("game-ended");
+      socket.off("answer-phase-ended");
     };
   }, [roomCode, submittedPrompt]);
 
@@ -182,10 +197,12 @@ return (
     <div className="host-container">
       {/* Top Black Bar */}
       <div className="top-bar">
+                    <button onClick={handleBack} className="flex items-center gap-2 text-white hover:text-gray-300 backbutton">  <i className="fas fa-arrow-left"></i></button>
         <div>
-          <div>
-              <h3>Join on your phone as <strong>player</strong>  {/*Room: {roomCode || "Creating..."}*/} </h3>
-              <h3>Your room code is:</h3>
+
+          <div className="roomcode-text">
+
+              <h3>Type the secret sauce code to unlock your player powers!   {/*Room: {roomCode || "Creating..."}*/} </h3>
           </div>
         </div>
       </div>
@@ -208,18 +225,20 @@ return (
           <>
             <h1 class="roomcode">{roomCode || "Creating..."}</h1>
             <h3>Players in Room:</h3>
-            <ul className="players-list">
-              {players.map((p) => (
-                <li key={p.id}>
-                  {p.name}{" "}
-                  {/*submittedPlayers.includes(p.id) ? (
-                    <span className="submitted">✔️ Submitted</span>
-                  ) : (
-                    <span className="pending">⏳ Pending</span>
-                  )*/}
-                </li>
-              ))}
-            </ul>
+<ul className="players-list" >
+  {[...Array(8)].map((_, index) => {
+    const player = players[index]; // get player by index
+    return (
+      <li
+        key={index}
+        className={`player-box ${player ? 'joined' : 'empty'}`}
+      >
+        {player ? player.name : 'Join'}
+      </li>
+    );
+  })}
+</ul>
+
           </>
         )}
 

@@ -42,6 +42,15 @@ function createRoom(socket, rooms) {
       console.log(`❌ Join failed. Room ${roomCode} is full.`);
       return;
     }
+
+  const nameExists = room.players.some(player => player.name.toLowerCase() === name.toLowerCase());
+  if (nameExists) {
+    socket.emit("error-message", "That name is already taken in this room.");
+    console.log(`❌ Join failed. Name "${name}" is already taken in room ${roomCode}.`);
+    return;
+  }
+
+
   
     socket.roomCode = roomCode; // Assign the room code to the socket
     console.log(`Room code assigned to socket ${socket.id}: ${roomCode}`); // Debug log
@@ -57,6 +66,7 @@ function createRoom(socket, rooms) {
   
     console.log(`${name} joined room ${roomCode}`);
   }
+  
 
 function handleDisconnect(socket, io, rooms) {
   const roomCode = socket.roomCode;

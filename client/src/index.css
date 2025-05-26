@@ -270,11 +270,9 @@ button:focus-visible {
 /* Container with padding */
 .host-container {
   position: relative;
+  width: 100%;
   height: 100vh;
-  width: 100vw;
   overflow: hidden;
-  font-family: system-ui, sans-serif;
-  color: white;
 }
 
 /* Main Title */
@@ -377,15 +375,15 @@ button:focus-visible {
 }
 
 .background-video {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   z-index: 0;
-  pointer-events: none; /* So clicks pass through */
 }
+
 
 .top-black-bar {
   position: fixed;
@@ -398,27 +396,23 @@ button:focus-visible {
 }
 
 .top-bar {
-  position: absolute;
+  position: absolute; /* makes it float above normal flow */
   top: 0;
+  left: 0;
   width: 100%;
-  background: black;
+  z-index: 30;
+  background-color: black;
   color: white;
   padding: 1rem;
-  text-align: center;
-  z-index: 2;
 }
 
 
 
 .overlay-ui {
-  position: relative;
-  z-index: 5;
-  height: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
-  display: grid;
-  align-items: center;
-  justify-items: center;
+  position: relative; /* triggers z-index */
+  z-index: 20;
+  padding: 2rem;
+  color: white;
 }
 
 .main{
@@ -426,11 +420,26 @@ button:focus-visible {
   align-items: center;
   justify-items: center;
   width: 100%;
-  margin-left: 10%;
-  margin-right: 10%;
+  margin-top: 50px; /* to account for the top bar */
 }
 
+.backbutton{
+  left: 0;
+  position: absolute;
+  color: white;
+  background-color: black;
+  border: 2px solid white;
+  border-radius: 100px;
+  margin-left: 2%;
+}
 
+.roomcode-text {
+  text-align: center;
+}
+
+.roomcode-text h3{
+  font-size: 1.8em;
+}
 
 .top-bar,
 .selection__topbar {
@@ -448,10 +457,7 @@ button:focus-visible {
   width: 100%;
 }
 
-.top-bar h3{
-  font-size: 1.4em;
-  margin: 0;
-}
+
 
 .top-bar strong{
   font-weight: 1200;
@@ -476,10 +482,22 @@ button:focus-visible {
   grid-row-gap: 10px;
 }
 
-.players-list li{
-  background-color: white;
+
+
+.player-box.joined {
+  background-color: rgb(39, 39, 39);
+  color: white;
   width: 90%;
   padding: 20px 10px 20px 10px;
   text-align: center;
-  border-radius: 40px;
+  border-radius: 10px;
+}
+
+.player-box.empty {
+  background-color: white;
+  color: black;
+  width: 90%;
+  padding: 20px 10px 20px 10px;
+  text-align: center;
+  border-radius: 10px;
 }
