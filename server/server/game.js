@@ -115,7 +115,7 @@ function startRound(io, roomCode, gameStates, rooms, roundNumber) {
 
   gameState.promptTimer = startTimer(
     /*timertijd*/
-    125,
+    120,
     (timeLeft) => {
       console.log(`⏳ Timer: ${timeLeft}s remaining for room ${roomCode}`);
       io.to(roomCode).emit("timer-update", timeLeft);

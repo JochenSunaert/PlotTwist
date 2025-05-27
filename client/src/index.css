@@ -297,16 +297,6 @@ button:focus-visible {
   font-size: 1rem;
 }
 
-.submitted {
-  color: green;
-  margin-left: 0.5rem;
-}
-
-.pending {
-  color: orange;
-  margin-left: 0.5rem;
-}
-
 /* Error message */
 .error-message {
   color: red;
@@ -331,12 +321,32 @@ button:focus-visible {
 
 /* Section wrapper for game phases */
 .game-phase-section {
-  background: rgba(0, 0, 0, 0.5);
   margin: 2rem auto;
   padding: 1rem 2rem;
   border-radius: 8px;
-  max-width: 700px;
+  width: 100%;
+  
+  display: grid;
+  align-items: center;
+  justify-items: center;
 }
+
+.prompt-timer{
+  
+  -webkit-text-stroke: #1a1a1a 1.2px;
+  font-size: 10em;
+    margin: 0;
+}
+
+.bottomtimer{
+  -webkit-text-stroke: #1a1a1a 0.9px;
+  color: white;
+  font-family: 'Antique Olive Std Compact', sans-serif;
+  font-size: 1.5em;
+  margin: 0;
+  text-align: end;
+}
+
 
 /* Round header */
 .game-phase-section > h2 {
@@ -348,7 +358,18 @@ button:focus-visible {
   padding-left: 1rem;
   list-style-type: disc;
   margin-top: 0.5rem;
+  width: 100%;
 }
+
+.submitted {
+
+    color: rgba(255, 255, 255, 0.412);
+}
+
+.pending {
+    color: rgb(255, 255, 255);
+}
+
 
 /* Final Results */
 .final-results {
@@ -420,7 +441,10 @@ button:focus-visible {
   align-items: center;
   justify-items: center;
   width: 100%;
-  margin-top: 50px; /* to account for the top bar */
+  height: calc(100vh - 125px);
+  margin-top: 35px;
+
+  
 }
 
 .backbutton{
@@ -439,6 +463,14 @@ button:focus-visible {
 
 .roomcode-text h3{
   font-size: 1.8em;
+}
+
+.topbar-text {
+  font-family: 'Antique Olive Std Compact', sans-serif;;
+}
+
+.playername{
+  color: rgb(136, 237, 255)
 }
 
 .top-bar,
@@ -460,8 +492,18 @@ button:focus-visible {
 
 
 .top-bar strong{
-  font-weight: 1200;
-  font-size: 1.2em;
+font-size: 1.2em;
+  max-width: 70%;
+
+}
+
+.submittedprompt{
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  text-align: center;
+  align-self: center;
+  justify-self: center;
 }
 
 .roomcode{
@@ -500,4 +542,109 @@ button:focus-visible {
   padding: 20px 10px 20px 10px;
   text-align: center;
   border-radius: 10px;
+}
+
+
+/*answer phase*/
+
+.fullscreen-prompt-overlay {
+  position: fixed;
+  z-index: 9999;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: black;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: opacity 1s ease-in-out;
+  opacity: 1;
+  transition: opacity 1s ease;
+}
+
+.prompt-text {
+  color: white;
+  font-size: 3rem;
+  font-weight: bold;
+  text-align: center;
+  max-width: 80%;
+}
+
+.fullscreen-prompt-overlay.fade-out {
+  opacity: 0;
+}
+
+.prompt-submitted{
+  font-size: 0.7em;
+  display: grid;
+}
+
+
+.submitted-players{
+    display: grid;
+    grid-template-columns: repeat(8,1fr);
+}
+.submitted-players li{
+margin-right:  5%;
+list-style: none;
+font-size: 2em;
+font-weight: 700;
+}
+
+.player-announcement{
+  font-size: 2em;
+  text-align: center;
+}
+
+.playerdiv {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+
+  padding: 1rem;
+}
+
+.aistory{
+  background-color: black;
+  border-radius: 20px;
+  padding: 2%;
+  max-height: 300px;
+  min-height: 200px;
+  overflow-y: scroll;
+}
+
+.aistory-section{
+  width: 75%;
+  padding: 2%;
+}
+
+
+.evaluation-section{
+color: white;
+}
+
+.evaluation-results{
+  background-color: black;
+  padding: 2%;
+  min-width: 600px;
+  border-radius: 20px;
+}
+
+.evaluation-players{
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  list-style-type: none;
+  background-color: orange;
+  max-width: 600px;
+  padding: 1%;
+}
+
+.evaluation-players li{
+  list-style-type: none;
+  width: 100%;
+  display: grid;
+  align-items: center;
+  justify-items: center;
+    height: 40px;
 }
