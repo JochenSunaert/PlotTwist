@@ -6,7 +6,6 @@ import { useNavigate } from 'react-router-dom';
 
 
 
-
 const videos = {
   waiting: "/videos/motion_backgrounds2/Color-geometry-1_4k_1.mp4",
   prompt: "/videos/motion_backgrounds2/Color-geometry-2_4k_1.mp4",
@@ -81,10 +80,65 @@ const Host = () => {
   const [showFullPrompt, setShowFullPrompt] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
   const [isStoryLoading, setIsStoryLoading] = useState(false);
-
+  const [audioUrl, setAudioUrl] = useState(null);
+  const [isSpeechDone, setIsSpeechDone] = useState(false);
   const handleBack = () => {
     navigate('/'); // or '../app' depending on your route structure
   };
+
+useEffect(() => {
+  const speakStory = (voices) => {
+    if (gamePhase === "story" && story) {
+      const voice = voices.find(v => v.name === "Google US English") || voices[0];
+      const sentences = story.match(/[^.!?]+[.!?]+/g) || [story];
+
+      let index = 0;
+      setIsSpeechDone(false);
+      speechSynthesis.cancel(); // Cancel any queued speech
+
+      const speakNext = () => {
+        if (index >= sentences.length) {
+          setIsSpeechDone(true);
+          return;
+        }
+
+        const utterance = new SpeechSynthesisUtterance(sentences[index].trim());
+        utterance.voice = voice;
+        utterance.rate = 0.95;
+        utterance.pitch = 1.05;
+
+        utterance.onend = () => {
+          index++;
+          speakNext();
+        };
+
+        utterance.onerror = (e) => {
+          console.error("SpeechSynthesis error:", e.error);
+          setIsSpeechDone(true);
+        };
+
+        speechSynthesis.speak(utterance);
+      };
+
+      speakNext();
+    }
+  };
+
+  const loadVoices = () => {
+    const voices = speechSynthesis.getVoices();
+    if (voices.length > 0) {
+      speakStory(voices);
+    } else {
+      speechSynthesis.onvoiceschanged = () => {
+        const loadedVoices = speechSynthesis.getVoices();
+        speakStory(loadedVoices);
+      };
+    }
+  };
+
+  loadVoices();
+}, [gamePhase, story]);
+
 
 
 
@@ -427,6 +481,7 @@ const renderFinalResults = () => {
         setGamePhase("evaluation");
       }}
       className="continue-button"
+      disabled={!isSpeechDone} // Disable until story is acknowledged
     >
       Continue to Results
     </button>
