@@ -9,7 +9,7 @@ module.exports = (io) => {
     console.log("🟢 New connection:", socket.id);
 
     // Host creates a room
-    socket.on("create-room", () => createRoom(socket, rooms));
+    socket.on("create-room", () => createRoom(socket, rooms, io));
 
     // Client joins a room
     socket.on("join-room", (data) => joinRoom(socket, io, rooms, data));

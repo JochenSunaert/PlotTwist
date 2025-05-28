@@ -332,7 +332,7 @@ async function handleSubmitAnswer(socket, io, rooms, gameStates, data) {
 // It emits updates to the clients and handles the end of the phase.
 function startAnswerPhase(io, roomCode, gameStates, rooms) {
   /*timertijd */
-  const timerDuration = 125; // 35 seconds for the answer phase
+  const timerDuration = 96; 
   let timeLeft = timerDuration;
 
   const gameState = gameStates[roomCode];

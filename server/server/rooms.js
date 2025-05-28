@@ -1,24 +1,40 @@
 const { generateRoomCode } = require("./utils");
 
-function createRoom(socket, rooms) {
-  const existingRoom = Object.values(rooms).find((room) => room.hostId === socket.id);
+function createRoom(socket, rooms, io) {
+  const existingRoomCode = Object.keys(rooms).find(
+    (code) => rooms[code].hostId === socket.id
+  );
+  const existingRoom = existingRoomCode ? rooms[existingRoomCode] : null;
 
   if (existingRoom) {
-    console.log(`❌ Host ${socket.id} already has an active room.`);
+    // Rejoin existing room
+    socket.roomCode = existingRoomCode;
+    socket.join(existingRoomCode);
+
+    // Notify frontend that the room exists
+    socket.emit("room-created", existingRoomCode);
+
+    // Refresh player list for host
+    io.to(existingRoomCode).emit("players-update", existingRoom.players);
+
+    console.log(`🔁 Host ${socket.id} rejoined existing room ${existingRoomCode}`);
     return;
   }
 
+  // Otherwise create new room
   const code = generateRoomCode(rooms);
   rooms[code] = {
     hostId: socket.id,
     players: [],
     locked: false,
   };
-  socket.roomCode = code; // Assign roomCode to the host's socket
+  socket.roomCode = code;
   socket.join(code);
   socket.emit("room-created", code);
   console.log(`🏠 Room ${code} created by ${socket.id}`);
 }
+
+
   function joinRoom(socket, io, rooms, { roomCode, name }) {
     console.log(`📥 join-room event received from ${socket.id}`);
     console.log(`👉 name: ${name}, code: ${roomCode}`);
