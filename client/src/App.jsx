@@ -6,7 +6,7 @@ import Client from "./components/Client.jsx";
 
 function App() {
   return (
-    <Router>
+    <Router basename="/">
       <Routes>
         
         <Route path="/" element={<Home />} />
