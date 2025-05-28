@@ -23,7 +23,8 @@ function startGame(socket, io, rooms, gameStates) {
     io.to(socket.id).emit("error-message", "Cannot start the game. No players in the room.");
     return;
   }
-  if (room.players.length < 2) {
+  /*speler aantal */
+  if (room.players.length < 1) {
     console.log(`❌ Start game failed: Not enough players in room ${roomCode}. Minimum 2 required.`);
     io.to(socket.id).emit("error-message", "Cannot start the game. At least 2 players are required.");
     return;

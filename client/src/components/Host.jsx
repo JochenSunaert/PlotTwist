@@ -12,9 +12,8 @@ const videos = {
   prompt: "/videos/motion_backgrounds2/Color-geometry-2_4k_1.mp4",
   answer: "/videos/motion_backgrounds2/Color-geometry-8_4k_1.mp4",
   story: "/videos/motion_backgrounds2/Color-geometry-4_4k_1.mp4",
-  evaluation: "/videos/motion_backgrounds2/Color-geometry-5_4k_1.mp4",
-  final: "/videos/motion_backgrounds2/Color-geometry-6_4k_1.mp4",
-
+  evaluation: "/videos/motion_backgrounds2/Color-geometry-1_4k_1.mp4",
+  final: "/videos/motion_backgrounds2/Color-geometry-1_4k_1.mp4",
 };
 
 const getTopBarText = (phase, promptPlayerName, submittedPrompt) => {
@@ -268,19 +267,30 @@ const renderFinalResults = () => {
   const sortedResults = [...finalResults].sort((a, b) => b.score - a.score);
 
   return (
-    <div style={{ marginTop: "1rem" }}>
-      <h3>🏆 Final Results:</h3>
-      <ul>
-        {sortedResults.map((player, index) => (
-          <li key={index}>
-            {player.name} (Team: {player.team}) - {player.score} points
-          </li>
-        ))}
-      </ul>
-      <button onClick={handleRestartGame} style={{ marginTop: "1rem" }}>
-        🔄 Restart Game
-      </button>
-    </div>
+<div className="final-results">
+  <h3>🏆 Final Results:</h3>
+  <ul className="results-list">
+    {sortedResults.map((player, index) => {
+      let placeClass = "";
+      if (index === 0) placeClass = "first-place";
+      else if (index === 1) placeClass = "second-place";
+      else if (index === 2) placeClass = "third-place";
+      else placeClass = "other-place";
+
+      return (
+        <li key={index} className={`result-item ${placeClass}`}>
+          <span className="player-name">{player.name}</span>
+          {/* <span className="player-team"> (Team: {player.team})</span> */}
+          <span className="player-score"> - {player.score} points</span>
+        </li>
+      );
+    })}
+  </ul>
+  <button onClick={handleRestartGame} className="restart-button">
+    🔄 Restart Game
+  </button>
+</div>
+
   );
 };
 
@@ -325,7 +335,7 @@ const renderFinalResults = () => {
 
       <div className="overlay-ui">
         <div className="main">
-          {!gameStarted && (
+          {!gameStarted && !finalResults && (
             <>
               <h1 class="roomcode">{roomCode || "Creating..."}</h1>
               <h3>Players in Room:</h3>
@@ -404,57 +414,53 @@ const renderFinalResults = () => {
                 </div>
 
               )}
-              {gamePhase === "story" && (
-                <div className="game-phase-section aistory-section">
-                 <h2>Round {currentRound}/{players.length}</h2>
-                  <h1> AI Generated Story</h1>
-                  <div class="aistory">
-                    <p>{story}</p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setStoryAcknowledged(true);
-                      setGamePhase("evaluation");
-                    }}
-                    className="button"
-                    style={{ marginTop: "1rem" }}
-                  >
-                    ✅ Continue to Results
-                  </button>
-                </div>
-              )}
+{gamePhase === "story" && (
+  <div className="game-phase-section aistory-section">
+    <h2 className="round-header">Round {currentRound}/{players.length}</h2>
+    <h1 className="story-title">This is how your story ended...</h1>
+    <div className="aistory">
+      <p>{story}</p>
+    </div>
+    <button
+      onClick={() => {
+        setStoryAcknowledged(true);
+        setGamePhase("evaluation");
+      }}
+      className="continue-button"
+    >
+      Continue to Results
+    </button>
+  </div>
+)}
+
               {(gamePhase === "evaluation" || gamePhase === "results") && evaluationResults && storyAcknowledged && (
-                <div className="game-phase-section evaluation-section">
-                  <h2>Round {currentRound}/{players.length}</h2>
-                  <h1>Evaluation Results</h1>
-                  <div class="evaluation-results">
-                    <p>
-                    <strong>Winning Team:</strong> {evaluationResults.winningTeam}
-                  </p>
-                  <p>
-                    <strong>Most Impactful Player:</strong> {evaluationResults.impactfulPlayer}
-                  </p>
-                  <p>
-                    <strong>Most Original Player:</strong> {evaluationResults.originalPlayer}
-                  </p>
+  <div className="game-phase-section evaluation-section">
+    <h2 className="round-header">Round {currentRound}/{players.length}</h2>
+    <h1 className="evaluation-title"> Judgement Day: Who Thrived, Who Cried?</h1>
 
-                  </div>
-                    <h2>points</h2>
-                    <ul class="evaluation-players">
+    <div className="evaluation-results">
+      <p><strong>🏆 Winning Team:</strong> {evaluationResults.winningTeam}</p>
+      <p><strong>🌟 Most Impactful Player:</strong> {evaluationResults.impactfulPlayer}</p>
+      <p><strong>🎨 Most Original Player:</strong> {evaluationResults.originalPlayer}</p>
+    </div>
 
-                    {evaluationResults.players.map((player, index) => (
-                      <li key={index}>
-                        <p>{player.name}:{player.score} </p>
-                      </li>
-                    ))}
-                  </ul>
-                  {isNextRoundReady && (
-                    <button onClick={handleNextRound} className="button" style={{ marginTop: "1rem" }}>
-                      🔁 Start Next Round
-                    </button>
-                  )}
-                </div>
-              )}
+    <h2 className="points-header">🎯 Points</h2>
+    <ul className="evaluation-players">
+      {evaluationResults.players.map((player, index) => (
+        <li key={index}>
+          <p>{player.name}: {player.score}</p>
+        </li>
+      ))}
+    </ul>
+
+    {isNextRoundReady && (
+      <button onClick={handleNextRound} className="next-round-button">
+        🔁 Start Next Round
+      </button>
+    )}
+  </div>
+)}
+
             </>
           )}
         </div>
