@@ -558,19 +558,21 @@ const renderFinalResults = () => {
     alignItems: 'center',
     justifyContent: 'center',
   }}>
-    <h1 style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>Start Lobby Music</h1>
+    <img className="logo" src='photos/plottwistlogowhite.png'></img>
+    <h1>The plot thickens</h1>
+    <img></img>
     <button
       style={{
         padding: '1rem 2rem',
         fontSize: '1.25rem',
-        backgroundColor: '#00ffcc',
+        backgroundColor: '#a21c26',
         border: 'none',
         borderRadius: '8px',
         cursor: 'pointer',
       }}
       onClick={handleStartMusic}
     >
-      Start Music
+      Start the lobby
     </button>
   </div>
 )}

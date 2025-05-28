@@ -898,3 +898,8 @@ color: white;
   from, to { border-color: transparent }
   50% { border-color: black; }
 }
+
+
+.logo{
+  margin: 1%;
+}
