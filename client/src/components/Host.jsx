@@ -1,12 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import socket from "./socket"; // Shared socket instance
 import { useNavigate } from 'react-router-dom';
-import { speak } from "./utils/speech";
-
-
-
-
-
+import { speak } from "./utils/speech"; // Assuming this 'speak' is for single utterances
 
 const videos = {
   waiting: "/videos/motion_backgrounds2/Color-geometry-1_4k_1.mp4",
@@ -26,12 +21,10 @@ const musicTracks = {
   final: "/music/waiting.mp3",
 };
 
-
 const getTopBarText = (phase, promptPlayerName, submittedPrompt) => {
   switch (phase) {
     case "waiting":
       return "Type the secret sauce code to unlock your player powers!";
-
     case "prompt":
       return promptPlayerName ? (
         <>
@@ -40,7 +33,6 @@ const getTopBarText = (phase, promptPlayerName, submittedPrompt) => {
       ) : (
         "Prompt time!"
       );
-
     case "answer":
       return submittedPrompt ? (
         <p className="prompt-submitted">
@@ -49,25 +41,18 @@ const getTopBarText = (phase, promptPlayerName, submittedPrompt) => {
       ) : (
         "Answer time! Get creative and respond with your wild ideas!"
       );
-
     case "story":
       return "The AI is weaving your story...";
-
     case "evaluation":
       return "Results are in! Who impressed the AI the most?";
-
     case "final":
       return "Game over! Let's see how everyone did.";
-
     default:
       return "";
   }
 };
 
-
 const Host = () => {
-
-  
   const navigate = useNavigate();
   const [roomCode, setRoomCode] = useState("");
   const [players, setPlayers] = useState([]);
@@ -96,76 +81,52 @@ const Host = () => {
   const [musicStarted, setMusicStarted] = useState(false);
   const audioRef = useRef(null);
 
-const handleBack = () => {
-  if (audioRef.current) {
-    audioRef.current.pause();
-    audioRef.current.currentTime = 0;
-    audioRef.current = null;
-  }
-
-  navigate('/');
-};
-
-
-  const [backgroundAudio, setBackgroundAudio] = useState(null);
-
-useEffect(() => {
-  const speakStory = (voices) => {
-    if (gamePhase === "story" && story) {
-      const voice = voices.find(v => v.name === "Google US English") || voices[0];
-      const sentences = story.match(/[^.!?]+[.!?]+/g) || [story];
-
-      let index = 0;
-      setIsSpeechDone(false);
-      speechSynthesis.cancel(); // Cancel any queued speech
-
-      const speakNext = () => {
-        if (index >= sentences.length) {
-          setIsSpeechDone(true);
-          return;
-        }
-
-        const utterance = new SpeechSynthesisUtterance(sentences[index].trim());
-        utterance.voice = voice;
-        utterance.rate = 0.95;
-        utterance.pitch = 1.05;
-        utterance.volume = 1.0;  // <- Add this line to increase TTS volume
-
-        utterance.onend = () => {
-          index++;
-          speakNext();
-        };
-
-        utterance.onerror = (e) => {
-          console.error("SpeechSynthesis error:", e.error);
-          setIsSpeechDone(true);
-        };
-
-        speechSynthesis.speak(utterance);
-      };
-
-      speakNext();
+  const handleBack = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current = null;
     }
+    navigate('/');
   };
 
-  const loadVoices = () => {
-    const voices = speechSynthesis.getVoices();
-    if (voices.length > 0) {
-      speakStory(voices);
-    } else {
-      speechSynthesis.onvoiceschanged = () => {
-        const loadedVoices = speechSynthesis.getVoices();
-        speakStory(loadedVoices);
-      };
+  // This useEffect is now for the general phase-based TTS
+  useEffect(() => {
+    switch (gamePhase) {
+      case "waiting":
+        speak("Welcome! Once all players are in, press the button to begin.");
+        break;
+      case "prompt":
+        speak(
+          "It's your turn to set the stage! " +
+          "Write a scenario where something bad is happening that the heroes must save, " +
+          "and the villains will try to sabotage. " +
+          "Make it exciting and clear so everyone knows what’s at stake. " +
+          "Remember, the heroes will try to save the day, and the villains will try to stop them."
+        );
+        break;
+      case "answer":
+        speak(
+          "Listen up, heroes and villains! The city is in danger—something unexpected has just happened. " +
+          "Heroes, your mission is to save the day and stop the disaster from unfolding. " +
+          "Villains, your job is to sabotage their plans and make sure they fail. " +
+          "Remember, everyone already knows their role, so get ready to play your part. " +
+          "Choose your actions wisely, because your choices will decide the fate of the city!"
+        );
+        break;
+      case "story":
+        // Story speech and display are now handled in the dedicated useEffect below
+        break;
+      case "evaluation":
+        speak("The AI has judged your answers. Let's see the results.");
+        break;
+      case "final":
+        speak("The game has ended. Let's reveal the final scores.");
+        break;
+      default:
+        break;
     }
-  };
-
-  loadVoices();
-}, [gamePhase, story]);
-
-
-
-
+  }, [gamePhase]);
 
   const handleRestartGame = () => {
     console.log("🔄 Restarting game...");
@@ -186,8 +147,6 @@ useEffect(() => {
     setIsNextRoundReady(false);
   };
 
-
-
   useEffect(() => {
     if (gamePhase === "answer") {
       setShowFullPrompt(true);
@@ -204,28 +163,23 @@ useEffect(() => {
     }
   }, [gamePhase]);
 
+  useEffect(() => {
+    socket.on("story-loading", () => {
+      setIsStoryLoading(true);
+    });
 
-useEffect(() => {
-  socket.on("story-loading", () => {
-    setIsStoryLoading(true);
-  });
+    socket.on("story-phase", ({ story }) => {
+      setIsStoryLoading(false);
+      setStory(story);
+    });
 
-  socket.on("story-phase", ({ story }) => {
-    setIsStoryLoading(false);
-    setStory(story);
-    // navigate to story screen or trigger phase
-  });
-
-  return () => {
-    socket.off("story-loading");
-    socket.off("story-phase");
-  };
-}, []);
-
-
+    return () => {
+      socket.off("story-loading");
+      socket.off("story-phase");
+    };
+  }, []);
 
   useEffect(() => {
-
     socket.emit("create-room");
 
     socket.on("room-created", (code) => setRoomCode(code));
@@ -260,13 +214,11 @@ useEffect(() => {
       setSubmittedPlayers((prev) => [...prev, playerId])
     );
 
- socket.on("answers-collected", ({ answers }) => {
+    socket.on("answers-collected", ({ answers }) => {
       setAnswers(answers);
       console.log("📨 Answers collected:", answers);
       setGamePhase("story");
     });
-
-
 
     socket.on("story-generated", ({ story }) => {
       console.log("📖 Story received:", story);
@@ -327,27 +279,24 @@ useEffect(() => {
     };
   }, []);
 
-const handleStartMusic = () => {
-  if (!audioRef.current) {
-    const audio = new Audio(musicTracks[gamePhase]);
-    audio.volume = 0.1;  // Use a sensible default volume, not 0 or 0.01
-    audio.loop = true;
-    audioRef.current = audio;
-  }
-  audioRef.current.play().catch((err) => {
-    console.warn("Autoplay failed:", err);
-  });
-  setMusicStarted(true);
-};
-
-
+  const handleStartMusic = () => {
+    if (!audioRef.current) {
+      const audio = new Audio(musicTracks[gamePhase]);
+      audio.volume = 0.1;
+      audio.loop = true;
+      audioRef.current = audio;
+    }
+    audioRef.current.play().catch((err) => {
+      console.warn("Autoplay failed:", err);
+    });
+    setMusicStarted(true);
+  };
 
   const handleStartGame = () => {
     console.log("🚀 Starting game in room:", roomCode);
     setErrorMessage("");
     socket.emit("start-game");
   };
-
 
   const handleNextRound = () => {
     setStoryAcknowledged(false);
@@ -357,164 +306,162 @@ const handleStartMusic = () => {
     setIsNextRoundReady(false);
   };
 
-  
-useEffect(() => {
-  switch (gamePhase) {
-    case "waiting":
-      speak("Welcome! Once all players are in, press the button to begin.");
-      break;
+  useEffect(() => {
+    if (!musicStarted || !audioRef.current) return;
 
-    case "prompt":
-        speak(
-    "It's your turn to set the stage! " +
-    "Write a scenario where something bad is happening that the heroes must save, " +
-    "and the villains will try to sabotage. " +
-    "Make it exciting and clear so everyone knows what’s at stake. " +
-    "Remember, the heroes will try to save the day, and the villains will try to stop them."
-  );
-      break;
+    // Pause current audio before changing
+    audioRef.current.pause();
+    audioRef.current.currentTime = 0;
+    audioRef.current.src = musicTracks[gamePhase];
 
-    case "answer":
-      speak(
-  "Listen up, heroes and villains! The city is in danger—something unexpected has just happened. " +
-  "Heroes, your mission is to save the day and stop the disaster from unfolding. " +
-  "Villains, your job is to sabotage their plans and make sure they fail. " +
-  "Remember, everyone already knows their role, so get ready to play your part. " +
-  "Choose your actions wisely, because your choices will decide the fate of the city!"
-);
+    audioRef.current.volume = 0.1;
+    // Play the new track
+    audioRef.current.play().catch((err) => {
+      console.warn("Autoplay failed on phase change:", err);
+    });
+  }, [gamePhase, musicStarted]);
 
-      break;
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        audioRef.current = null;
+      }
+    };
+  }, []);
 
-    case "story":
-      // Already handled by your existing TTS logic
-      break;
-
-    case "evaluation":
-      speak("The AI has judged your answers. Let's see the results.");
-      break;
-
-    case "final":
-      speak("The game has ended. Let's reveal the final scores.");
-      break;
-
-    default:
-      break;
-  }
-}, [gamePhase]);
-
-useEffect(() => {
-  if (!musicStarted || !audioRef.current) return;
-
-  // Pause current audio before changing
-  audioRef.current.pause();
-  audioRef.current.currentTime = 0;
-  audioRef.current.src = musicTracks[gamePhase];
-
-  audioRef.current.volume = 0.1;
-  // Play the new track
-  audioRef.current.play().catch((err) => {
-    console.warn("Autoplay failed on phase change:", err);
-  });
-
-  // No cleanup needed here, since audioRef persists
-}, [gamePhase, musicStarted]);
-
-
-useEffect(() => {
-  return () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      audioRef.current = null;
+  // New useEffect specifically for scrolling when displayedText updates
+  useEffect(() => {
+    if (storyTextareaRef.current) {
+      storyTextareaRef.current.scrollTo({
+        top: storyTextareaRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
     }
-  };
-}, []);
+  }, [displayedText]); // This dependency correctly triggers scroll on each update
 
-useEffect(() => {
-  if (gamePhase !== "story" || !story) {
-    setDisplayedText("");
-    return;
-  }
-
-  setDisplayedText("");
-  setIsSpeechDone(false);
-  speechSynthesis.cancel();
-
-  const voices = speechSynthesis.getVoices();
-  const voice = voices.find(v => v.name === "Google US English") || voices[0];
-
-  const utterance = new SpeechSynthesisUtterance(story);
-  utterance.voice = voice;
-  utterance.rate = 0.95;
-  utterance.pitch = 1.05;
-
-  utterance.onboundary = (event) => {
-    if (event.name === "word") {
-      setDisplayedText(story.slice(0, event.charIndex + (event.charLength || 0)));
+  // ************ MODIFIED USE EFFECT FOR WORD-BY-WORD DISPLAY ************
+  useEffect(() => {
+    if (gamePhase !== "story" || !story) {
+      setDisplayedText("");
+      setIsSpeechDone(false); // Reset speech done state
+      return;
     }
+
+    const voices = speechSynthesis.getVoices();
+    const voice = voices.find(v => v.name === "Google US English") || voices[0];
+    const sentences = story.match(/[^.!?]+[.!?]+/g) || [story];
+
+    let sentenceIndex = 0;
+    setDisplayedText(""); // Start empty
+    setIsSpeechDone(false);
+    speechSynthesis.cancel(); // Cancel any previous speech
+
+    const typeWord = (words, wordIndex, currentTypedText, resolve) => {
+      if (wordIndex >= words.length) {
+        resolve(); // All words in the sentence typed
+        return;
+      }
+
+      // Add a space before the word if it's not the very first word of the story
+      const prefix = (currentTypedText === "" && sentenceIndex === 0 && wordIndex === 0) ? "" : " ";
+
+      setDisplayedText(prev => prev + prefix + words[wordIndex]);
+
+      const delay = 100; // Adjust this delay for word typing speed (in milliseconds)
+      setTimeout(() => {
+        typeWord(words, wordIndex + 1, currentTypedText + prefix + words[wordIndex], resolve);
+      }, delay);
+    };
+
+    const speakAndDisplayNextSentence = () => {
+      if (sentenceIndex >= sentences.length) {
+        setIsSpeechDone(true); // All sentences spoken and displayed
+        return;
+      }
+
+      const currentSentence = sentences[sentenceIndex].trim();
+      const words = currentSentence.split(/\s+/).filter(word => word.length > 0); // Split by spaces and filter empty strings
+
+      // Speak the entire sentence
+      const utterance = new SpeechSynthesisUtterance(currentSentence);
+      utterance.voice = voice;
+      utterance.rate = 0.95;
+      utterance.pitch = 1.05;
+      utterance.volume = 1.0;
+
+      utterance.onend = () => {
+        sentenceIndex++;
+        // Wait a small moment before starting the next sentence's display/speech
+        setTimeout(speakAndDisplayNextSentence, 500); // Delay between sentences
+      };
+
+      utterance.onerror = (e) => {
+        console.error("SpeechSynthesis error:", e.error);
+        setIsSpeechDone(true);
+      };
+
+      speechSynthesis.speak(utterance);
+
+      // Display words one by one for the current sentence
+      new Promise(resolve => {
+        typeWord(words, 0, displayedText, resolve);
+      }).then(() => {
+        // After all words in a sentence are displayed, add a sentence break (e.g., a space)
+        // This is handled by the initial `setDisplayedText(prev => prev + prefix + words[wordIndex]);`
+        // if you want line breaks, you'd add <br /> or \n here
+      });
+    };
+
+    // Initial call to start the process
+    speakAndDisplayNextSentence();
+
+    // Cleanup on unmount or story/gamePhase change
+    return () => {
+      speechSynthesis.cancel();
+      clearTimeout(); // Clear any pending timeouts for typing
+    };
+  }, [gamePhase, story]); // Keep these dependencies for initial story setup
+  // ************ END MODIFIED USE EFFECT ************
+
+  const renderFinalResults = () => {
+    const sortedResults = [...finalResults].sort((a, b) => b.score - a.score);
+
+    return (
+      <div className="final-results">
+        <h3>🏆 Final Results:</h3>
+        <ul className="results-list">
+          {sortedResults.map((player, index) => {
+            let placeClass = "";
+            if (index === 0) placeClass = "first-place";
+            else if (index === 1) placeClass = "second-place";
+            else if (index === 2) placeClass = "third-place";
+            else placeClass = "other-place";
+
+            return (
+              <li key={index} className={`result-item ${placeClass}`}>
+                <span className="player-name">{player.name}</span>
+                {/* <span className="player-team"> (Team: {player.team})</span> */}
+                <span className="player-score"> - {player.score} points</span>
+              </li>
+            );
+          })}
+        </ul>
+        <button onClick={handleRestartGame} className="restart-button">
+          Restart Game
+        </button>
+      </div>
+    );
   };
-
-  utterance.onend = () => {
-    setIsSpeechDone(true);
-    setDisplayedText(story); // Show full text when done
-  };
-
-  utterance.onerror = (e) => {
-    console.error("SpeechSynthesis error:", e.error);
-    setIsSpeechDone(true);
-  };
-
-  speechSynthesis.speak(utterance);
-
-  // Cleanup on unmount or story change
-  return () => {
-    speechSynthesis.cancel();
-  };
-}, [gamePhase, story]);
-
-
-
-const renderFinalResults = () => {
-  const sortedResults = [...finalResults].sort((a, b) => b.score - a.score);
 
   return (
-<div className="final-results">
-  <h3>🏆 Final Results:</h3>
-  <ul className="results-list">
-    {sortedResults.map((player, index) => {
-      let placeClass = "";
-      if (index === 0) placeClass = "first-place";
-      else if (index === 1) placeClass = "second-place";
-      else if (index === 2) placeClass = "third-place";
-      else placeClass = "other-place";
-
-      return (
-        <li key={index} className={`result-item ${placeClass}`}>
-          <span className="player-name">{player.name}</span>
-          {/* <span className="player-team"> (Team: {player.team})</span> */}
-          <span className="player-score"> - {player.score} points</span>
-        </li>
-      );
-    })}
-  </ul>
-  <button onClick={handleRestartGame} className="restart-button">
-     Restart Game
-  </button>
-</div>
-
-  );
-};
-
-
-  return (
-    
     <div className="host-container">
       <audio ref={audioRef} src={musicTracks.waiting} loop />
       {/* Top Black Bar */}
       <div className="top-bar">
-        <button onClick={handleBack} className="flex items-center gap-2 text-white hover:text-gray-300 backbutton">  <i className="fas fa-arrow-left"></i></button>
+        <button onClick={handleBack} className="flex items-center gap-2 text-white hover:text-gray-300 backbutton"> <i className="fas fa-arrow-left"></i></button>
         <div>
-
           <div className="roomcode-text">
             <h3 class="topbar-text">{getTopBarText(gamePhase, promptPlayerName, submittedPrompt)}</h3>
           </div>
@@ -539,45 +486,43 @@ const renderFinalResults = () => {
         </div>
       )}
       {isStoryLoading && (
-  <div className="story-loading-overlay">
-    <div className="loading-spinner" />
-    <p>Crafting your story...</p>
-  </div>
-)}
+        <div className="story-loading-overlay">
+          <div className="loading-spinner" />
+          <p>Crafting your story...</p>
+        </div>
+      )}
 
-{gamePhase === "waiting" && !musicStarted && (
-  <div style={{
-    position: 'fixed',
-    top: 0, left: 0,
-    width: '100vw', height: '100vh',
-    backgroundColor: 'black',
-    color: 'white',
-    zIndex: 9999,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-  }}>
-    <img className="logo" src='photos/plottwistlogowhite.png'></img>
-    <h1>The plot thickens</h1>
-    <img></img>
-    <button
-      style={{
-        padding: '1rem 2rem',
-        fontSize: '1.25rem',
-        backgroundColor: '#a21c26',
-        border: 'none',
-        borderRadius: '8px',
-        cursor: 'pointer',
-      }}
-      onClick={handleStartMusic}
-    >
-      Start the lobby
-    </button>
-  </div>
-)}
-
-
+      {gamePhase === "waiting" && !musicStarted && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0,
+          width: '100vw', height: '100vh',
+          backgroundColor: 'black',
+          color: 'white',
+          zIndex: 9999,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <img className="logo" src='photos/plottwistlogowhite.png'></img>
+          <h1>The plot thickens</h1>
+          <img></img>
+          <button
+            style={{
+              padding: '1rem 2rem',
+              fontSize: '1.25rem',
+              backgroundColor: '#a21c26',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+            }}
+            onClick={handleStartMusic}
+          >
+            Start the lobby
+          </button>
+        </div>
+      )}
 
       <div className="overlay-ui">
         <div className="main">
@@ -598,7 +543,6 @@ const renderFinalResults = () => {
                   );
                 })}
               </ul>
-
             </>
           )}
 
@@ -618,21 +562,14 @@ const renderFinalResults = () => {
                 <div className="game-phase-section">
                   <div>
                     {timer !== null && <h1 class="prompt-timer">{timer}s</h1>}
-                    {/* <p class="bottomtimer">time left</p> */}
                   </div>
-
-
                 </div>
-
               )}
               {gamePhase === "answer" && (
                 <div className="game-phase-section">
                   <h2>Round {currentRound}/{players.length}</h2>
-
-
                   <div>
                     {timer !== null && <h1 class="prompt-timer">{answerTimer}s</h1>}
-                    {/* <p class="bottomtimer">time left</p> */}
                   </div>
                   {answers.length > 0 && (
                     <ul>
@@ -654,61 +591,59 @@ const renderFinalResults = () => {
                         </li>
                       ))}
                     </ul>
-
+                  </div>
+                </div>
+              )}
+              {gamePhase === "story" && (
+                <div className="game-phase-section aistory-section">
+                  <h2 className="round-header">Round {currentRound}/{players.length}</h2>
+                  <h1 className="story-title">This is how your story ended...</h1>
+                  <div className="aistory" ref={storyTextareaRef}
+                    style={{ overflowY: "auto", maxHeight: "300px" }}
+                  >
+                    <p>{displayedText}</p>
                   </div>
 
+                  <button
+                    onClick={() => {
+                      setStoryAcknowledged(true);
+                      setGamePhase("evaluation");
+                    }}
+                    className="continue-button"
+                  // disabled={!isSpeechDone} // Disable until story is acknowledged
+                  >
+                    Continue to Results
+                  </button>
                 </div>
-
               )}
-{gamePhase === "story" && (
-  <div className="game-phase-section aistory-section">
-    <h2 className="round-header">Round {currentRound}/{players.length}</h2>
-    <h1 className="story-title">This is how your story ended...</h1>
-<div className="aistory">
-  <p>{displayedText}</p>
-</div>
-
-    <button
-      onClick={() => {
-        setStoryAcknowledged(true);
-        setGamePhase("evaluation");
-      }}
-      className="continue-button"
-      // disabled={!isSpeechDone} // Disable until story is acknowledged
-    >
-      Continue to Results
-    </button>
-  </div>
-)}
 
               {(gamePhase === "evaluation" || gamePhase === "results") && evaluationResults && storyAcknowledged && (
-  <div className="game-phase-section evaluation-section">
-    <h2 className="round-header">Round {currentRound}/{players.length}</h2>
-    <h1 className="evaluation-title"> Judgement Day: Who Thrived, Who Cried?</h1>
+                <div className="game-phase-section evaluation-section">
+                  <h2 className="round-header">Round {currentRound}/{players.length}</h2>
+                  <h1 className="evaluation-title"> Judgement Day: Who Thrived, Who Cried?</h1>
 
-    <div className="evaluation-results">
-      <p><strong>🏆 Winning Team:</strong> {evaluationResults.winningTeam}</p>
-      <p><strong>🌟 Most Impactful Player:</strong> {evaluationResults.impactfulPlayer}</p>
-      <p><strong>🎨 Most Original Player:</strong> {evaluationResults.originalPlayer}</p>
-    </div>
+                  <div className="evaluation-results">
+                    <p><strong>🏆 Winning Team:</strong> {evaluationResults.winningTeam}</p>
+                    <p><strong>🌟 Most Impactful Player:</strong> {evaluationResults.impactfulPlayer}</p>
+                    <p><strong>🎨 Most Original Player:</strong> {evaluationResults.originalPlayer}</p>
+                  </div>
 
-    <h2 className="points-header">🎯 Points</h2>
-    <ul className="evaluation-players">
-      {evaluationResults.players.map((player, index) => (
-        <li key={index}>
-          <p>{player.name}: {player.score}</p>
-        </li>
-      ))}
-    </ul>
+                  <h2 className="points-header">🎯 Points</h2>
+                  <ul className="evaluation-players">
+                    {evaluationResults.players.map((player, index) => (
+                      <li key={index}>
+                        <p>{player.name}: {player.score}</p>
+                      </li>
+                    ))}
+                  </ul>
 
-    {isNextRoundReady && (
-      <button onClick={handleNextRound} className="next-round-button">
-        Start Next Round
-      </button>
-    )}
-  </div>
-)}
-
+                  {isNextRoundReady && (
+                    <button onClick={handleNextRound} className="next-round-button">
+                      Start Next Round
+                    </button>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>

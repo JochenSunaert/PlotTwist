@@ -903,3 +903,22 @@ color: white;
 .logo{
   margin: 1%;
 }
+
+
+.highlighted-word {
+  background-color: yellow; /* Or any highlight color */
+  color: black; /* Adjust text color for contrast */
+  font-weight: bold;
+  transition: background-color 0.2s ease; /* Smooth transition for highlighting */
+}
+
+/* Optional: Ensure story text area looks good */
+.aistory {
+  white-space: pre-wrap; /* Preserves whitespace and wraps text */
+  word-wrap: break-word; /* Breaks long words */
+}
+
+.story-word {
+    /* Basic styling for all words */
+    display: inline-block; /* Essential for proper highlighting and spacing */
+}
