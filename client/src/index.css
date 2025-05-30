@@ -775,20 +775,23 @@ color: white;
 }
 
 .continue-button {
-  margin-top: 1.5rem;
-  padding: 0.8rem 1.6rem;
-  background-color: #00e676;
+  background-color: green; /* Your normal button color */
+  color: white;
+  padding: 10px 20px;
   border: none;
-  color: #000;
-  font-weight: bold;
-  font-size: 1rem;
-  border-radius: 0.6rem;
+  border-radius: 5px;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: background-color 0.3s ease; /* Smooth transition for visual feedback */
 }
 
-.continue-button:hover {
-  background-color: #00c853;
+.continue-button:hover:not(:disabled) {
+  background-color: grey; /* Lighter hover color when not disabled */
+}
+
+.continue-button:disabled {
+  background-color: #888; /* A grey color for disabled state */
+  color: #bbb; /* Lighter text color */
+  cursor: not-allowed; /* Change cursor to indicate it's not clickable */
 }
 
 @keyframes fadeIn {
