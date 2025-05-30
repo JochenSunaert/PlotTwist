@@ -172,9 +172,6 @@ useEffect(() => {
 }, [gamePhase, story]);
 
 
-
-
-
   const handleRestartGame = () => {
     console.log("🔄 Restarting game...");
     socket.emit("restart-game");
