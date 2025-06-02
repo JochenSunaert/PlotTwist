@@ -118,7 +118,7 @@ function startRound(io, roomCode, gameStates, rooms, roundNumber) {
 
   gameState.promptTimer = startTimer(
     /*timertijd*/
-    70, // Prompt timer duration
+    20, // Prompt timer duration
     (timeLeft) => {
       console.log(`⏳ Timer: ${timeLeft}s remaining for room ${roomCode}`);
       io.to(roomCode).emit("timer-update", timeLeft);
@@ -176,70 +176,61 @@ function endGame(io, roomCode, gameStates, rooms) {
 
 // ############################### HANDLING PROMPT SUBMISSION ###############################
 // This function handles the submission of a prompt by the prompt provider.
+// game.js
+
+// ... (other functions) ...
+
+// ############################### HANDLING PROMPT SUBMISSION ###############################
 function handleSubmitPrompt(socket, io, rooms, gameStates, data) {
-    // Attempt to get roomCode from the data first, then fallback to socket.roomCode
-    // This adds robustness if the client explicitly sends roomCode with the prompt.
-    const roomCode = data.roomCode || socket.roomCode;
+    const roomCode = socket.roomCode;
     const { prompt } = data;
 
     console.log(`📥 Received prompt submission for room ${roomCode}: "${prompt}" (raw)`);
 
-    // Basic validation for room existence
     if (!roomCode || !rooms[roomCode]) {
         console.log(`❌ Submit prompt failed: Room ${roomCode} not found.`);
-        io.to(socket.id).emit("error-message", "Room not found. Please try again.");
+        io.to(socket.id).emit("error", { message: "Room not found. Please try again." });
         return;
     }
 
     try {
         const gameState = gameStates[roomCode];
 
-        // Ensure game state exists for the room
-        if (!gameState) {
-            console.log(`❌ Submit prompt failed: Game state for room ${roomCode} not found.`);
-            io.to(socket.id).emit("error-message", "Game state not found. Please try again.");
-            return;
-        }
-
-        // Prevent duplicate submissions for the same round
         if (gameState.promptSubmitted) {
             console.log(`⚠️ Prompt already submitted for room ${roomCode}. Ignoring duplicate submission.`);
             return;
         }
 
-        const trimmedPrompt = (prompt || "").trim(); // Ensure prompt is a string before trimming
+        const trimmedPrompt = prompt.trim(); // Trim whitespace from the client's prompt
 
-        // If the submitted prompt is empty or just whitespace, DO NOT treat it as a valid submission.
-        // This ensures the timer's fallback (random prompt) logic will still execute.
         if (trimmedPrompt === "") {
-            console.log(`⚠️ Received empty/whitespace prompt from player ${socket.id} in room ${roomCode}. Random prompt will be chosen if time runs out.`);
+            // If the submitted prompt is empty or just whitespace,
+            // DO NOT mark it as submitted, and let the timer handle the fallback.
+            console.log(`⚠️ Received empty prompt from player ${socket.id}. Timer will auto-select if no valid prompt arrives.`);
+            // Optionally, you might want to give feedback to the player.
             io.to(socket.id).emit("error-message", "Prompt cannot be empty. A random one will be chosen if time runs out.");
-            return; // Exit here. We don't mark promptSubmitted as true or clear the timer.
+            return; // Exit here, let the timer handle the actual prompt setting
         }
 
         // If a valid (non-empty) prompt is submitted:
-        // Clear the prompt timer as a valid prompt has been received
         if (gameState.promptTimer) {
             clearInterval(gameState.promptTimer);
             gameState.promptTimer = null;
             console.log(`🛑 Cleared prompt timer for room ${roomCode}`);
         }
 
-        // Save the valid, trimmed prompt to the game state
-        gameState.prompt = trimmedPrompt;
-        gameState.promptSubmitted = true; // Mark as submitted only for valid, non-empty prompts
+        gameState.prompt = trimmedPrompt; // Save the valid, trimmed prompt
+        gameState.promptSubmitted = true; // Mark as submitted only for valid prompts
 
-        // Broadcast the valid prompt to all players in the room
         io.to(roomCode).emit("prompt-submitted", { prompt: gameState.prompt });
         console.log(`📜 Prompt submitted successfully for room ${roomCode}: "${gameState.prompt}" (trimmed)`);
 
-        // Immediately transition to the answer phase
         io.to(roomCode).emit("start-answer-phase");
         console.log(`⏳ Starting answer phase for room ${roomCode}...`);
-        startAnswerPhase(io, roomCode, gameStates, rooms); // Start the timer for answers
+        startAnswerPhase(io, roomCode, gameStates, rooms);
     } catch (error) {
         console.error(`❌ An error occurred while handling prompt submission for room ${roomCode}:`, error);
-        io.to(socket.id).emit("error-message", "An unexpected error occurred. Please try again.");
+        io.to(socket.id).emit("error", { message: "An unexpected error occurred. Please try again." });
     }
 }
 
@@ -398,7 +389,7 @@ async function processAllAnswers(io, roomCode, gameStates, rooms) {
 // It emits updates to the clients and handles the end of the phase.
 function startAnswerPhase(io, roomCode, gameStates, rooms) {
   /*timertijd */
-  const timerDuration = 96;
+  const timerDuration = 20;
   let timeLeft = timerDuration;
 
   const gameState = gameStates[roomCode];
