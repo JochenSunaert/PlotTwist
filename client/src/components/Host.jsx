@@ -267,7 +267,9 @@ useEffect(() => {
     });
     socket.on("error-message", (msg) => setErrorMessage(msg));
 
-    socket.on("timer-update", setTimer);
+    socket.on("timer-update", (timeLeft) => {
+  setTimer(Math.max(0, timeLeft - 1));
+});
     socket.on("timer-ended", () => {
       if (!submittedPrompt) {
         const fallbackPrompts = [
@@ -281,7 +283,9 @@ useEffect(() => {
       setTimer(null);
     });
 
-    socket.on("answer-timer-update", setAnswerTimer);
+    socket.on("answer-timer-update", (timeLeft) => {
+  setAnswerTimer(Math.max(0, timeLeft - 1));
+});
     socket.on("player-submitted", ({ playerId }) =>
       setSubmittedPlayers((prev) => [...prev, playerId])
     );

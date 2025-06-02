@@ -3,6 +3,14 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import socket from "./socket";
 
+const videos = {
+  lobby: "/videos/motion_backgrounds3/Color-geometry-10_4k_1.mp4",
+  prompt: "/videos/motion_backgrounds3/Color-geometry-6_4k_1.mp4",
+  answer: "/videos/motion_backgrounds3/Color-geometry-12_4k_1.mp4",
+  waiting: "/videos/motion_backgrounds3/Color-geometry-9_4k_1.mp4", // Or a different video for waiting
+  // Add other phases as needed, or default to lobby video
+};
+
 const Client = () => {
   const [name, setName] = useState("");
   const [roomCode, setRoomCode] = useState("");
@@ -23,7 +31,6 @@ const Client = () => {
   const [answersSubmitted, setAnswersSubmitted] = useState(false);
   const [answerTimer, setAnswerTimer] = useState(null); // Timer for answer phase
   const [gamePhase, setGamePhase] = useState("lobby");
-  
 
   const answerRef = useRef(answer);
   const answersSubmittedRef = useRef(answersSubmitted);
@@ -43,7 +50,6 @@ const Client = () => {
     promptRef.current = prompt;
   }, [prompt]);
 
-
   const predefinedPrompts = [
     "A notorious thief has stolen a valuable diamond from the city's museum and it's your job to either catch the thief or help them escape.",
     "A hacked satellite will crash into the city in 10 minutes.",
@@ -58,14 +64,14 @@ const Client = () => {
 
   const handleSubmitPrompt = useCallback(() => {
     if (promptSubmittedRef.current) {
-        console.log("Client: Prompt already submitted for this round, skipping.");
-        return;
+      console.log("Client: Prompt already submitted for this round, skipping.");
+      return;
     }
     const promptToSend = promptRef.current.trim();
     console.log(`Client: Manual/Auto-submitting prompt: "${promptToSend}"`);
     socket.emit("submit-prompt", { prompt: promptToSend });
     promptSubmittedRef.current = true; // Mark as manually submitted by this client
-  }, [name]);
+  }, []); // Depend on nothing as promptRef.current is already the latest
 
   const handleRandomPrompt = () => {
     const randomPrompt = predefinedPrompts[Math.floor(Math.random() * predefinedPrompts.length)];
@@ -122,10 +128,13 @@ const Client = () => {
     };
 
     const handleTimerUpdate = (timeLeft) => {
-      setTimer(timeLeft);
+      // Set the visual timer to be one second behind the backend timer.
+      // Ensure it doesn't go below 0.
+      setTimer(Math.max(0, timeLeft - 1));
 
       // ***** CRITICAL CHANGE FOR PROMPT AUTO-SUBMISSION *****
       // Trigger submission when timeLeft is 1, to get ahead of server's 0-second action.
+      // This means when the server says 1, the client auto-submits, and visually shows 0.
       if (isPromptPlayer && timeLeft === 1 && !promptSubmittedRef.current) {
         console.log("Client: Prompt timer almost ended (1s left), auto-submitting current prompt.");
         handleSubmitPrompt(); // This will submit promptRef.current
@@ -141,10 +150,13 @@ const Client = () => {
     };
 
     const handleAnswerTimerUpdate = (timeLeft) => {
-      setAnswerTimer(timeLeft);
+      // Set the visual answer timer to be one second behind the backend timer.
+      // Ensure it doesn't go below 0.
+      setAnswerTimer(Math.max(0, timeLeft - 1));
 
       // ***** CRITICAL CHANGE FOR ANSWER AUTO-SUBMISSION *****
       // Trigger submission when timeLeft is 1, to get ahead of server's 0-second action.
+      // This means when the server says 1, the client auto-submits, and visually shows 0.
       if (timeLeft === 1 && !answersSubmittedRef.current) {
         console.log("Client: Answer timer almost ended (1s left), auto-submitting current answer.");
         handleSubmitAnswer(); // This will submit the current value of answerRef.current
@@ -235,86 +247,107 @@ const Client = () => {
   }, [handleSubmitAnswer, handleSubmitPrompt, isPromptPlayer]); // Added handleSubmitPrompt and isPromptPlayer as dependencies
 
   return (
-    <div style={{ padding: "2rem" }}>
-      <h1>Client Screen</h1>
-      <p>{team}</p>
+<div className="client-container"> {/* Main container for the client screen */}
+      {/* Background video */}
+      <video
+        key={gamePhase} // Forces video reload/change when gamePhase updates
+        className="background-video"
+        src={videos[gamePhase] || videos.lobby} // Default to lobby video if phase not found
+        autoPlay
+        muted
+        loop
+        playsInline
+      />
 
-      {gamePhase === "lobby" && !joinedRoom && (
-        <>
-          <input
-            type="text"
-            placeholder="Your name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            style={{ marginRight: "1rem" }}
-          />
-          <input
-            type="text"
-            placeholder="Room code"
-            value={roomCode}
-            onChange={(e) => setRoomCode(e.target.value)}
-            style={{ marginRight: "1rem" }}
-          />
-          <button onClick={handleJoin}>Join Room</button>
-          {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
-        </>
-      )}
+      {/* Overlay for UI content */}
+      <div className="overlay-content">
+        <img class="clientlogo" src="./photos/plottwistlogowhite.png"></img>
+        <p className="team-display">{team}</p>
 
-      {gamePhase === "lobby" && joinedRoom && !gameStarted && (
-        <h2>✅ You joined room {roomCode.toUpperCase()}</h2>
-      )}
+        {gamePhase === "lobby" && !joinedRoom && (
+          <div className="lobby-form">
+            <input
+              type="text"
+              placeholder="Your name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+            <input
+              type="text"
+              placeholder="Room code"
+              value={roomCode}
+              onChange={(e) => setRoomCode(e.target.value)}
+            />
+            <button onClick={handleJoin}>Join Room</button>
+            {errorMessage && <p className="error-message">{errorMessage}</p>}
+          </div>
+        )}
 
-      {gamePhase === "start" && (
-        <>
-          <h2>🎉 Game Started!</h2>
-          <h3>Round {currentRound + 1} of {totalRounds}</h3>
-          {team && <p>🧑‍🤝‍🧑 Your team: <strong>{team}</strong></p>}
-        </>
-      )}
+        {gamePhase === "lobby" && joinedRoom && !gameStarted && (
+          <div>
+            <h3 className="joined-message"> You joined room {roomCode.toUpperCase()}</h3>
+            <p> please wait for the host to start the game...</p>
+          </div>
+          
+          
+        )}
 
-      {gamePhase === "prompt" && isPromptPlayer && (
-        <>
-          <h3>You are selecting the prompt!</h3>
-          <textarea
-            placeholder="Write your own prompt or choose one."
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            style={{ width: "100%", height: "100px", marginBottom: "1rem" }}
-          />
-          <button onClick={handleRandomPrompt} style={{ marginRight: "1rem" }}>
-            Random
-          </button>
-          <button onClick={handleSubmitPrompt} disabled={promptSubmittedRef.current}>
-            {promptSubmittedRef.current ? "Prompt Submitted" : "Submit Prompt"}
-          </button>
-          {timer !== null && <p>⏳ Time left: {timer} seconds</p>}
-        </>
-      )}
+        {gamePhase === "start" && (
+          <div className="game-start-message">
+            <h2>🎉 Game Started!</h2>
+            <h3>
+              Round {currentRound + 1} of {totalRounds}
+            </h3>
+            {team && (
+              <p className="player-team">
+                🧑‍🤝‍🧑 Your team: <strong>{team}</strong>
+              </p>
+            )}
+          </div>
+        )}
 
-      {gamePhase === "waiting" && waitingForPrompt && (
-        <p>⏳ Waiting for {promptPlayerName} to submit a prompt...</p>
-      )}
+        {gamePhase === "prompt" && isPromptPlayer && (
+          <div className="prompt-section">
+            <h3>You are selecting the prompt!</h3>
+            <textarea
+              placeholder="Write your own prompt or choose one."
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+            />
+            <div className="prompt-buttons">
+              <button onClick={handleRandomPrompt}>Random</button>
+              <button onClick={handleSubmitPrompt} disabled={promptSubmittedRef.current}>
+                {promptSubmittedRef.current ? "Prompt Submitted" : "Submit Prompt"}
+              </button>
+            </div>
+            {timer !== null && <p className="timer-display">⏳ Time left: {timer} seconds</p>}
+          </div>
+        )}
 
-      {gamePhase === "waiting" && submittedPrompt && (
-        <p>📜 The prompt is: {submittedPrompt}</p>
-      )}
+        {gamePhase === "waiting" && waitingForPrompt && (
+          <p className="waiting-message">⏳ Waiting for {promptPlayerName} to submit a prompt...</p>
+        )}
 
-      {gamePhase === "answer" && (
-        <>
-          <p>📜 The prompt is: {submittedPrompt}</p>
-          <textarea
-            placeholder="Write your answer here..."
-            value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
-            disabled={answersSubmitted}
-            style={{ width: "100%", height: "100px", marginBottom: "1rem" }}
-          />
-          <button onClick={handleSubmitAnswer} disabled={answersSubmitted}>
-            {answersSubmitted ? "Answer Submitted" : "Submit Answer"}
-          </button>
-          {answerTimer !== null && <p>⏳ Answer Timer: {answerTimer} seconds</p>}
-        </>
-      )}
+        {gamePhase === "waiting" && submittedPrompt && (
+          <p className="submitted-prompt">📜 The prompt is: {submittedPrompt}</p>
+        )}
+
+        {gamePhase === "answer" && (
+          <div className="answer-section">
+            <p className="prompt-for-answer">📜 The prompt is: {submittedPrompt}</p>
+            <textarea
+              placeholder="Write your answer here..."
+              value={answer}
+              onChange={(e) => setAnswer(e.target.value)}
+              disabled={answersSubmitted}
+            />
+            <button onClick={handleSubmitAnswer} disabled={answersSubmitted}>
+              {answersSubmitted ? "Answer Submitted" : "Submit Answer"}
+            </button>
+            {answerTimer !== null && <p className="timer-display">⏳ Answer Timer: {answerTimer} seconds</p>}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
