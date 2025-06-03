@@ -224,10 +224,6 @@ button:focus-visible {
   max-width: 600px; /* optional, limit max width */
 }
 
-
-
-
-
 .selection__overlay {
   min-width: 600px;
   padding: 1rem 2rem;
@@ -240,9 +236,6 @@ button:focus-visible {
   position: static !important;
   transform: none !important;
 }
-
-
-
 
 .selection__confirm-button {
   background-color: black;
@@ -263,6 +256,9 @@ button:focus-visible {
 .selection__confirm-button:hover {
   background-color: #333;
 }
+
+
+
 
 
 
@@ -305,7 +301,7 @@ button:focus-visible {
 
 /* Buttons */
 .button {
-  padding: 15px 50px 15px 50px;
+  padding: 20px 60px 20px 60px;
   background-color: black;
   color: white;
   border: none;
@@ -510,11 +506,28 @@ font-size: 1.2em;
 
 .roomcode{
   margin-top: 10%;
-  font-size: 6em;
+  font-size: 8em;
   align-self: center;
   justify-self: center;
  -webkit-text-stroke: #1a1a1a 1.5px;
+ justify-self: end;
 }
+
+.roomcode-container{
+  width: 100%;
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  justify-items: center;
+  margin-top: 5%;
+  grid-column-gap: 5%;
+}
+
+.roomcode-container img{
+  width: 30%;
+  justify-self: start;
+}
+
 
 .players-list{
   color: black;
@@ -537,6 +550,10 @@ font-size: 1.2em;
   border-radius: 10px;
 }
 
+.player-box.joined:nth-child(1) {
+  background-color: #8B181E;
+}
+
 .player-box.empty {
   background-color: white;
   color: black;
@@ -548,6 +565,15 @@ font-size: 1.2em;
 
 
 /*answer phase*/
+
+.answers-list{
+  list-style: none;
+  text-align: left;
+}
+
+.player-answers h5{
+  text-align:  left !important;
+}
 
 .fullscreen-prompt-overlay {
   position: fixed;
@@ -940,7 +966,13 @@ color: white;
   align-items: center;
   color: #fff; /* Default text color to white for contrast */
   font-family: Arial, sans-serif;
-  text-align: center;
+  text-align: left;
+}
+
+
+
+.client-container p{
+  margin: 0;
 }
 
 .background-video {
@@ -964,6 +996,7 @@ color: white;
   border-radius: 10px;
   max-width: 80%; /* Limit content width */
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.7); /* Subtle shadow for depth */
+  display: grid;
 }
 
 
@@ -1019,6 +1052,11 @@ button:disabled {
   align-items: center;
 }
 
+.lobby-form h4 {
+  text-align: left;
+  width: 100%;
+  margin-bottom: 5px;}
+
 .prompt-buttons {
   display: flex;
   gap: 1rem; /* Space between buttons */
@@ -1026,19 +1064,49 @@ button:disabled {
 }
 
 .timer-display {
-  font-size: 2em;
+  font-size: 1em;
   font-weight: bold;
-  color: #FF4500; /* Orange-red for timers */
+  color: white; 
   margin-top: 1rem;
+  color: #ffffff;
 }
 
 .error-message {
-  color: #FF6347; /* Tomato red for errors */
+  color: #FF6347; 
   font-weight: bold;
 }
 
 .clientlogo{
   width: 20%;
+  align-self: center;
+  justify-self: center;
+}
+
+.textleft{
+  text-align: left;
+}
+
+.bottomtext{
+  margin-bottom: 2% !important;
+}
+.team-display{
+  font-size: 1.2em;
+  display: block ruby;}
+
+.block-ruby{
+  display: inline-block;
+  text-align: left;
+  margin-bottom: 2%;
+  width: 100%;
+}
+
+.block-ruby h4{
+  margin-right: 2%;
+}
+
+
+.prompt-for-answer{
+  margin-bottom: 2%;
 }
 
 .team-display,
@@ -1049,6 +1117,15 @@ button:disabled {
 .prompt-for-answer,
 .player-team {
   margin-bottom: 1rem;
+}
+
+
+.lobby-message{
+  display: grid;
+}
+
+.startbutton{
+  margin-top: 10%;
 }
 
 /* Responsive adjustments */
@@ -1083,4 +1160,26 @@ button:disabled {
 }
 }
 
-/**/
+
+@media (max-width: 768px) {
+  /*selection media*/
+  .selection__overlay{
+    min-width: 100px;
+    margin: 5%;
+  }
+
+  .selection__topbar{
+    height: 20%;
+  }
+
+  .selection__topbar h2{
+    font-size: 1.8em
+  }
+
+  .selection__arrow{
+    display: none;
+  }
+  .bottomtext{
+  margin-bottom: 5% !important;
+}
+}

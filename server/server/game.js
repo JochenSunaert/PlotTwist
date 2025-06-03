@@ -7,9 +7,10 @@ const { startTimer } = require('./timerUtils');
 // ############################### STARTING GAME ###############################
 // This function starts the game for a given room and initializes the game state.
 
+// ############################### STARTING GAME ###############################
 function startGame(socket, io, rooms, gameStates) {
   const roomCode = socket.roomCode;
-  console.log(`🚀 Starting game... RoomCode: ${roomCode}`);
+  console.log(`🚀 Attempting to start game in room: ${roomCode} by socket ${socket.id}`);
 
   if (!roomCode || !rooms[roomCode]) {
     console.log(`❌ Start game failed: Room ${roomCode} not found.`);
@@ -19,16 +20,24 @@ function startGame(socket, io, rooms, gameStates) {
 
   const room = rooms[roomCode];
 
-  // Check if there are players in the room
-  if (!room.players || room.players.length === 0) {
-    console.log(`❌ Start game failed: No players in room ${roomCode}.`);
-    io.to(socket.id).emit("error-message", "Cannot start the game. No players in the room.");
+  // --- NEW: Check if the emitting socket is the designated game starter or host ---
+  if (socket.id !== room.gameStarterId && socket.id !== room.hostId) {
+    console.log(`❌ Start game failed: Socket ${socket.id} is not the designated game starter or host for room ${roomCode}.`);
+    io.to(socket.id).emit("error-message", "Only the designated game starter or host can start the game.");
     return;
   }
-  /*speler aantal */
-  if (room.players.length < 1) { // Changed from < 2, as per your code, but usually minimum 2 is required for a game. Keep your desired player count.
+  // --- END NEW ---
+
+  // Check if there are enough players in the room
+  if (!room.players || room.players.length < 2) { // Minimum 2 players to start a game
     console.log(`❌ Start game failed: Not enough players in room ${roomCode}. Minimum 2 required.`);
     io.to(socket.id).emit("error-message", "Cannot start the game. At least 2 players are required.");
+    return;
+  }
+
+  if (room.locked) { // Prevent starting an already started game
+    console.log(`❌ Start game failed: Game in room ${roomCode} is already locked/started.`);
+    io.to(socket.id).emit("error-message", "Game has already started.");
     return;
   }
 
@@ -118,7 +127,7 @@ function startRound(io, roomCode, gameStates, rooms, roundNumber) {
 
   gameState.promptTimer = startTimer(
     /*timertijd*/
-    70, // Prompt timer duration
+    20, // Prompt timer duration
     (timeLeft) => {
       console.log(`⏳ Timer: ${timeLeft}s remaining for room ${roomCode}`);
       io.to(roomCode).emit("timer-update", timeLeft);
@@ -176,65 +185,58 @@ function endGame(io, roomCode, gameStates, rooms) {
 
 // ############################### HANDLING PROMPT SUBMISSION ###############################
 // This function handles the submission of a prompt by the prompt provider.
-// game.js
-
-// ... (other functions) ...
-
-// ############################### HANDLING PROMPT SUBMISSION ###############################
 function handleSubmitPrompt(socket, io, rooms, gameStates, data) {
-    const roomCode = socket.roomCode;
-    const { prompt } = data;
+  const roomCode = socket.roomCode;
+  const { prompt } = data;
 
-    console.log(`📥 Received prompt submission for room ${roomCode}: "${prompt}" (raw)`);
+  console.log(`📥 Received prompt submission for room ${roomCode}: "${prompt}" (raw)`);
 
-    if (!roomCode || !rooms[roomCode]) {
-        console.log(`❌ Submit prompt failed: Room ${roomCode} not found.`);
-        io.to(socket.id).emit("error", { message: "Room not found. Please try again." });
-        return;
+  if (!roomCode || !rooms[roomCode]) {
+    console.log(`❌ Submit prompt failed: Room ${roomCode} not found.`);
+    io.to(socket.id).emit("error", { message: "Room not found. Please try again." });
+    return;
+  }
+
+  try {
+    const gameState = gameStates[roomCode];
+
+    if (gameState.promptSubmitted) {
+      console.log(`⚠️ Prompt already submitted for room ${roomCode}. Ignoring duplicate submission.`);
+      return;
     }
 
-    try {
-        const gameState = gameStates[roomCode];
+    const trimmedPrompt = prompt.trim(); // Trim whitespace from the client's prompt
 
-        if (gameState.promptSubmitted) {
-            console.log(`⚠️ Prompt already submitted for room ${roomCode}. Ignoring duplicate submission.`);
-            return;
-        }
-
-        const trimmedPrompt = prompt.trim(); // Trim whitespace from the client's prompt
-
-        if (trimmedPrompt === "") {
-            // If the submitted prompt is empty or just whitespace,
-            // DO NOT mark it as submitted, and let the timer handle the fallback.
-            console.log(`⚠️ Received empty prompt from player ${socket.id}. Timer will auto-select if no valid prompt arrives.`);
-            // Optionally, you might want to give feedback to the player.
-            io.to(socket.id).emit("error-message", "Prompt cannot be empty. A random one will be chosen if time runs out.");
-            return; // Exit here, let the timer handle the actual prompt setting
-        }
-
-        // If a valid (non-empty) prompt is submitted:
-        if (gameState.promptTimer) {
-            clearInterval(gameState.promptTimer);
-            gameState.promptTimer = null;
-            console.log(`🛑 Cleared prompt timer for room ${roomCode}`);
-        }
-
-        gameState.prompt = trimmedPrompt; // Save the valid, trimmed prompt
-        gameState.promptSubmitted = true; // Mark as submitted only for valid prompts
-
-        io.to(roomCode).emit("prompt-submitted", { prompt: gameState.prompt });
-        console.log(`📜 Prompt submitted successfully for room ${roomCode}: "${gameState.prompt}" (trimmed)`);
-
-        io.to(roomCode).emit("start-answer-phase");
-        console.log(`⏳ Starting answer phase for room ${roomCode}...`);
-        startAnswerPhase(io, roomCode, gameStates, rooms);
-    } catch (error) {
-        console.error(`❌ An error occurred while handling prompt submission for room ${roomCode}:`, error);
-        io.to(socket.id).emit("error", { message: "An unexpected error occurred. Please try again." });
+    if (trimmedPrompt === "") {
+      // If the submitted prompt is empty or just whitespace,
+      // DO NOT mark it as submitted, and let the timer handle the fallback.
+      console.log(`⚠️ Received empty prompt from player ${socket.id}. Timer will auto-select if no valid prompt arrives.`);
+      // Optionally, you might want to give feedback to the player.
+      io.to(socket.id).emit("error-message", "Prompt cannot be empty. A random one will be chosen if time runs out.");
+      return; // Exit here, let the timer handle the actual prompt setting
     }
+
+    // If a valid (non-empty) prompt is submitted:
+    if (gameState.promptTimer) {
+      clearInterval(gameState.promptTimer);
+      gameState.promptTimer = null;
+      console.log(`🛑 Cleared prompt timer for room ${roomCode}`);
+    }
+
+    gameState.prompt = trimmedPrompt; // Save the valid, trimmed prompt
+    gameState.promptSubmitted = true; // Mark as submitted only for valid prompts
+
+    io.to(roomCode).emit("prompt-submitted", { prompt: gameState.prompt });
+    console.log(`📜 Prompt submitted successfully for room ${roomCode}: "${gameState.prompt}" (trimmed)`);
+
+    io.to(roomCode).emit("start-answer-phase");
+    console.log(`⏳ Starting answer phase for room ${roomCode}...`);
+    startAnswerPhase(io, roomCode, gameStates, rooms);
+  } catch (error) {
+    console.error(`❌ An error occurred while handling prompt submission for room ${roomCode}:`, error);
+    io.to(socket.id).emit("error", { message: "An unexpected error occurred. Please try again." });
+  }
 }
-
-// ... (rest of gameEvents.js remains the same, especially handleSubmitAnswer and startAnswerPhase) ...
 
 // ############################### HANDLING GAME RESTART ###############################
 // This function handles the restart of a game for a given room.
@@ -263,7 +265,7 @@ function handleRestartGame(socket, io, rooms, gameStates) {
 // This function handles the submission of answers by players during the answer phase.
 async function handleSubmitAnswer(socket, io, rooms, gameStates, data) {
   // roomCode can come from socket.roomCode (for manual submissions) or data.roomCode (for auto-submissions)
-  const roomCode = socket.roomCode || data.roomCode;
+  const roomCode = socket?.roomCode || data.roomCode;
   const { playerName, answer } = data; // 'answer' can be the actual text, empty string, or '<No answer provided>'
 
   console.log(`Data received on server for answer from ${playerName} in room ${roomCode}:`, data);
@@ -285,47 +287,40 @@ async function handleSubmitAnswer(socket, io, rooms, gameStates, data) {
     gameState.answers = [];
   }
 
-  // Check if the player has already submitted to avoid duplicates
-  // This is crucial to prevent the auto-submission from overwriting a manual one.
-  const existingAnswer = gameState.answers.find((ans) => ans.playerName === playerName);
-  if (existingAnswer) {
-    console.log(`🛑 Duplicate submission detected for player ${playerName}. Ignoring.`);
-    return; // Ignore duplicate submissions
-  }
+  const existingAnswerIndex = gameState.answers.findIndex((ans) => ans.playerName === playerName);
 
-  // Find the player's team from the gameState
-  const player = gameState.players.find((p) => p.name === playerName);
-  if (!player) {
-    console.log(`❌ Submit answer failed: Player ${playerName} not found in game state.`);
-    // This could happen if a player leaves right before auto-submission, handle gracefully.
-    return;
-  }
-
-  // --- Crucial Logic for Handling the 'answer' Value ---
-  // If the client sends an empty string (meaning they typed nothing or deleted everything),
-  // we want to store that as an empty string ("").
-  // Only if the server is *auto-submitting* for a player who didn't send anything
-  // will it send "<No answer provided>".
   let answerToStore = answer;
   if (typeof answer === 'string') {
-      answerToStore = answer.trim(); // Trim whitespace from the client's answer
+    answerToStore = answer.trim(); // Trim whitespace from the client's answer
 
-      // If, after trimming, it's an empty string, and it wasn't explicitly
-      // sent by the server as "<No answer provided>", then store it as an empty string.
-      // This handles cases where the user types spaces, or deletes their text.
-      if (answerToStore === "" && data.answer !== "<No answer provided>") {
-          answerToStore = ""; // Player sent an empty or whitespace-only answer
-      }
-      // If data.answer was "<No answer provided>", then answerToStore remains "<No answer provided>"
+    // If, after trimming, it's an empty string, and it wasn't explicitly
+    // sent by the server as "<No answer provided>", then store it as an empty string.
+    // This handles cases where the user types spaces, or deletes their text.
+    if (answerToStore === "" && data.answer !== "<No answer provided>") {
+      answerToStore = ""; // Player sent an empty or whitespace-only answer
+    }
+    // If data.answer was "<No answer provided>", then answerToStore remains "<No answer provided>"
   } else {
-      // Fallback for non-string answers, although typically 'answer' will be a string.
-      answerToStore = "<No answer provided>";
+    // Fallback for non-string answers, although typically 'answer' will be a string.
+    answerToStore = "<No answer provided>";
   }
 
 
-  gameState.answers.push({ playerName, answer: answerToStore, team: player.team });
+  if (existingAnswerIndex !== -1) {
+    // Update existing answer (e.g., if a player manually submits after an auto-submission)
+    gameState.answers[existingAnswerIndex].answer = answerToStore;
+    console.log(`📝 Answer updated for ${playerName} (Team: ${gameState.answers[existingAnswerIndex].team}): "${answerToStore}" in room ${roomCode}`);
+  } else {
+    // Add new answer
+    const player = gameState.players.find((p) => p.name === playerName);
+    if (!player) {
+      console.log(`❌ Submit answer failed: Player ${playerName} not found in game state.`);
+      return;
+    }
+    gameState.answers.push({ playerName, answer: answerToStore, team: player.team });
+    console.log(`📝 Answer received from ${playerName} (Team: ${player.team}): "${answerToStore}" in room ${roomCode}`);
+  }
 
-  console.log(`📝 Answer received from ${playerName} (Team: ${player.team}): "${answerToStore}" in room ${roomCode}`);
 
   // Emit to the host that a player has submitted (e.g., to update UI)
   // Use playerName for auto-submissions, as socket.id might not be available or relevant.
@@ -339,11 +334,13 @@ async function handleSubmitAnswer(socket, io, rooms, gameStates, data) {
   // The 'startAnswerPhase' function will handle this when the timer expires.
   // If all players answer *before* the timer, we need to stop the timer and trigger AI.
   if (allPlayersAnswered && gameState.answerPhaseTimer) {
-      clearInterval(gameState.answerPhaseTimer); // Stop the timer if all answers are in early
-      gameState.answerPhaseTimer = null;
-      console.log(`✅ All players submitted manually. Cleared answer phase timer for room ${roomCode}. Processing answers.`);
-      // Call the function that processes answers and generates story/evaluation
-      processAllAnswers(io, roomCode, gameStates, rooms);
+    clearInterval(gameState.answerPhaseTimer); // Stop the timer if all answers are in early
+    gameState.answerPhaseTimer = null;
+    console.log(`✅ All players submitted manually. Cleared answer phase timer for room ${roomCode}. Processing answers.`);
+    // After ensuring all answers are recorded, emit the 'answer-phase-ended' event.
+    io.to(roomCode).emit("answer-phase-ended", { allPlayerAnswers: gameState.answers }); // <-- Emit all answers here
+    // Call the function that processes answers and generates story/evaluation
+    processAllAnswers(io, roomCode, gameStates, rooms);
   }
 }
 
@@ -351,8 +348,8 @@ async function handleSubmitAnswer(socket, io, rooms, gameStates, data) {
 async function processAllAnswers(io, roomCode, gameStates, rooms) {
   const gameState = gameStates[roomCode];
   if (!gameState) {
-      console.error(`❌ Game state not found for room ${roomCode} during AI processing.`);
-      return;
+    console.error(`❌ Game state not found for room ${roomCode} during AI processing.`);
+    return;
   }
 
   const hostId = rooms[roomCode].hostId; // Assuming hostId is stored in rooms object
@@ -361,25 +358,27 @@ async function processAllAnswers(io, roomCode, gameStates, rooms) {
   const players = gameState.players;
 
   try {
-      const story = await generateStory(prompt, answers);
-      console.log(`📖 Generated Story for room ${roomCode}: ${story}`);
-      io.to(hostId).emit("story-generated", { story });
+    const story = await generateStory(prompt, answers);
+    console.log(`📖 Generated Story for room ${roomCode}: ${story}`);
+    io.to(hostId).emit("story-generated", { story });
 
-      const evaluation = await evaluateAnswers(prompt, answers, story, players);
-      console.log("🏆 Evaluation Results:", evaluation);
+    const evaluation = await evaluateAnswers(prompt, answers, story, players);
+    console.log("🏆 Evaluation Results:", evaluation);
 
-      // Update game state with evaluated players' scores
-      gameState.players = evaluation.players;
+    // Update game state with evaluated players' scores
+    gameState.players = evaluation.players;
 
-      // Broadcast evaluation results to all clients
-      io.to(roomCode).emit("evaluation-results", evaluation);
+    // Broadcast evaluation results to all clients
+    io.to(roomCode).emit("evaluation-results", evaluation);
 
-      // Notify clients that the answer phase has ended
-      io.to(roomCode).emit("answer-phase-ended", { nextRoundAvailable: true });
-      console.log(`✅ Answers processed, story generated, and points assigned for room ${roomCode}`);
+    // Notify clients that the answer phase has ended
+    // This event is already emitted in handleSubmitAnswer and startAnswerPhase
+    // but ensures it's sent after AI processing is complete if it wasn't already.
+    // io.to(roomCode).emit("answer-phase-ended", { nextRoundAvailable: true });
+    console.log(`✅ Answers processed, story generated, and points assigned for room ${roomCode}`);
   } catch (error) {
-      console.error("❌ Error during AI processing (generateStory/evaluateAnswers):", error);
-      io.to(hostId).emit("error-message", "Failed to process the round. Please try again.");
+    console.error("❌ Error during AI processing (generateStory/evaluateAnswers):", error);
+    io.to(hostId).emit("error-message", "Failed to process the round. Please try again.");
   }
 }
 
@@ -389,7 +388,7 @@ async function processAllAnswers(io, roomCode, gameStates, rooms) {
 // It emits updates to the clients and handles the end of the phase.
 function startAnswerPhase(io, roomCode, gameStates, rooms) {
   /*timertijd */
-  const timerDuration = 96;
+  const timerDuration = 20;
   let timeLeft = timerDuration;
 
   const gameState = gameStates[roomCode];
@@ -431,7 +430,6 @@ function startAnswerPhase(io, roomCode, gameStates, rooms) {
       );
 
       // Auto-submit "<No answer provided>" for players who haven't submitted
-      // This will only happen if the client genuinely didn't send anything (even an empty string).
       playersWithoutAnswers.forEach((player) => {
         // Ensure we don't double-submit if there was a race condition
         if (!gameState.answers.some(a => a.playerName === player.name)) {
@@ -455,6 +453,9 @@ function startAnswerPhase(io, roomCode, gameStates, rooms) {
         const allPlayersAnsweredAfterFallback = gameState.answers.length === rooms[roomCode].players.length;
         console.log(`All players answered (after timer auto-submission check): ${allPlayersAnsweredAfterFallback}`);
 
+        // Emit all answers to clients before processing, so clients can display them
+        io.to(roomCode).emit("answer-phase-ended", { allPlayerAnswers: gameState.answers }); // <-- Emit all answers here as well
+
         // If all players have answers (either manual or auto-submitted), proceed with AI processing
         if (allPlayersAnsweredAfterFallback) {
           processAllAnswers(io, roomCode, gameStates, rooms);
@@ -462,7 +463,8 @@ function startAnswerPhase(io, roomCode, gameStates, rooms) {
           // This else block should ideally not be hit if all players are handled.
           // It's a safety net.
           console.error(`🔴 Critical: Not all players have answers even after timer and auto-submission. Remaining: ${rooms[roomCode].players.length - gameState.answers.length}`);
-          io.to(roomCode).emit("answer-phase-ended", { nextRoundAvailable: true });
+          // Even if critical, still proceed to next phase for players.
+          // io.to(roomCode).emit("answer-phase-ended", { nextRoundAvailable: true }); // This line is now redundant if answers are always emitted.
         }
       }, 50); // Small delay to let all handleSubmitAnswer calls finish.
     }

@@ -5,7 +5,7 @@ import { speak } from "./utils/speech";
 
 const videos = {
   waiting: "/videos/motion_backgrounds3/Color-geometry-1_4k_1.mp4",
-  prompt: "/videos/motion_backgrounds3/Color-geometry-2_4k_1.mp4",
+  prompt: "/videos/motion_backgrounds3/Color-geometry-11_4k_1.mp4",
   answer: "/videos/motion_backgrounds3/Color-geometry-8_4k_1.mp4",
   story: "/videos/motion_backgrounds3/Color-geometry-4_4k_1.mp4",
   evaluation: "/videos/motion_backgrounds3/Color-geometry-1_4k_1.mp4",
@@ -543,7 +543,10 @@ const Host = () => {
         <div className="main">
           {!gameStarted && !finalResults && (
             <>
+            <div class="roomcode-container">
               <h1 className="roomcode">{roomCode || "Creating..."}</h1>
+              <img src="./photos/qr-code.png"></img>
+            </div>
               <h3>Players in Room:</h3>
               <ul className="players-list" >
                 {[...Array(8)].map((_, index) => {
