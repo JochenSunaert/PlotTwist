@@ -304,11 +304,52 @@ This project is licensed under the MIT License. You can find the full text of th
 ---
 
 
-## 🙏 sources
+## 📚 Sources & References
 
-* **Motion Background Videos:** A special thank you to the creators of the engaging background videos used in the game, sourced from various motion graphics libraries.
-* **OpenAI:** For providing the powerful API that drives the game's innovative AI storytelling and evaluation features.
-* Thanks to all early testers and those who provided valuable feedback!
+This section provides a detailed list of all external resources, including official documentation, libraries, frameworks, assets, and any significant tutorials or articles that contributed to the development of PlotTwist.
+
+### Core Technologies & Libraries
+
+* **React:** Official Documentation - [https://react.dev/](https://react.dev/)
+* **Node.js:** Official Website - [https://nodejs.org/](https://nodejs.org/)
+* **Express.js:** Official Website - [https://expressjs.com/](https://expressjs.com/)
+* **Socket.IO:** Official Documentation - [https://socket.io/](https://socket.io/)
+* **OpenAI API:** Official Documentation - [https://platform.openai.com/docs](https://platform.openai.com/docs)
+* **Vite:** Official Website - [https://vitejs.dev/](https://vitejs.dev/)
+* **npm (Node Package Manager):** Official Website - [https://www.npmjs.com/](https://www.npmjs.com/)
+
+### Motion Background Video Assets
+
+We utilized a selection of high-quality motion backgrounds to enhance the visual experience of each game phase. Please find their respective sources below:
+
+* **Lobby Video (`Color-geometry-10_4k_1.mp4`):** Sourced from [**_Platform Name (e.g., Pexels, Mixkit, Pixabay)_**] by [**_Creator's Name/Alias (e.g., cottonbro studio)_**].
+    * [**_Direct Link to Video Source Page (e.g., https://www.pexels.com/videos/some-video-id)_**]
+* **Prompt Video (`Color-geometry-6_4k_1.mp4`):** Sourced from [**_Platform Name_**] by [**_Creator's Name/Alias_**].
+    * [**_Direct Link to Video Source Page_**]
+* **Answer Video (`Color-geometry-12_4k_1.mp4`):** Sourced from [**_Platform Name_**] by [**_Creator's Name/Alias_**].
+    * [**_Direct Link to Video Source Page_**]
+* **Waiting Video (`Color-geometry-9_4k_1.mp4`):** Sourced from [**_Platform Name_**] by [**_Creator's Name/Alias_**].
+    * [**_Direct Link to Video Source Page_**]
+* **Display Answers Video (`Color-geometry-11_4k_1.mp4`):** Sourced from [**_Platform Name_**] by [**_Creator's Name/Alias_**].
+    * [**_Direct Link to Video Source Page_**]
+* **Results Video (`Color-geometry-1.mp4`):** Sourced from [**_Platform Name_**] by [**_Creator's Name/Alias_**].
+    * [**_Direct Link to Video Source Page_**]
+    *(Please replace the bold italic placeholders with the actual names and links for each video.)*
+
+### Learning Resources & Tutorials (Optional - Add your specific sources here)
+
+This project's architecture and specific implementations were guided by various learning materials and community discussions. If you followed any specific tutorials, articles, courses, or adapted unique code snippets, please list them here:
+
+* **Real-time Game Development with Socket.IO:** (e.g., A specific course or blog series on building multiplayer games.)
+    * [**_Link to Tutorial/Article/Course URL_**]
+* **Advanced React State Management Patterns:** (e.g., If you used a specific pattern like Context API, Redux, Zustand, and learned it from a notable guide.)
+    * [**_Link to Tutorial/Article/Course URL_**]
+* **Effective Prompt Engineering for LLMs:** (e.g., If you learned specific techniques for guiding the OpenAI API from a particular resource.)
+    * [**_Link to Article/Guide URL_**]
+* **General Web Development Best Practices:** (e.g., MDN Web Docs, freeCodeCamp, etc., if they were particularly influential for common patterns.)
+    * [**_Link to Resource_**]
+    *(Add more specific links here if you found particular Stack Overflow answers, GitHub gists, or code examples crucial to your development.)*
+
 
 ---
 
