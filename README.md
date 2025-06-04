@@ -32,7 +32,7 @@ It's a dynamic, real-time experience that blends collaborative storytelling with
 * **Team-Based Gameplay:** Players are assigned to teams, adding a strategic layer to submissions.
 * **Scoring System:** Players earn points based on AI evaluation and game performance.
 
----
+
 
 ## 🧩 Project Structure
 
