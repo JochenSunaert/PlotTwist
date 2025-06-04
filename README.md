@@ -20,7 +20,7 @@ It's a dynamic, real-time experience that blends collaborative storytelling with
 
 * **Real-Time Multiplayer:** Seamless interaction between players and the main game screen via WebSockets.
 * **Multi-Device Play:** Players use their smartphones (clients) to interact, while the main game runs on a PC (host).
-* **Host Controls:** The game host manages room creation, game start, and progression.
+* **Host Controls:** The game host manages room creation, game start, and the gamephases.
 * **Dynamic Game Phases:** Features distinct phases for:
     * **Lobby:** Joining and waiting for the game to start.
     * **Prompt Selection:** One player is chosen to submit a creative scenario (prompt).
@@ -87,7 +87,7 @@ It's a dynamic, real-time experience that blends collaborative storytelling with
 3.  **Start the backend server:** (In a new terminal window)
 
     ```bash
-    cd server
+    cd server  (you should be in /server/server)
     node index.js
     ```
 
