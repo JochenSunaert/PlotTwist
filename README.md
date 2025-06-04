@@ -26,7 +26,7 @@ It's a dynamic, real-time experience that blends collaborative storytelling with
 * [Contact](#-contact)
 * [License](#license)
 * [Acknowledgements](#-acknowledgements)
-* [Sources & References](#-sources-&-references)
+* [Sources & References](#-sources)
 ---
 
 ## 🚀 Live Demo
@@ -304,7 +304,7 @@ This project is licensed under the MIT License. You can find the full text of th
 ---
 
 
-## 📚 Sources & References
+## 📚 Sources
 
 This section provides a detailed list of all external resources that contributed to the development of PlotTwist.
 
