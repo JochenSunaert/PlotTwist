@@ -337,8 +337,9 @@ We utilized a selection of motion backgrounds to enhance the visual experience o
 
 -  openAI: The basics, **from:** [**net ninja**](https://www.youtube.com/watch?v=C4ve8Kjw9ZY&list=PL4cUxeGkcC9ipdXMDVcGimIVMG_Z6-Vsu)
 -  Master React Router in an easy way  **from:** [**Nova Designs**](link)
--  A Beginner's Guide to The OpenAI API:  [**datacamp**](https://www.datacamp.com/tutorial/guide-to-openai-api-on-tutorial-best-practices)
+-  A Beginner's Guide to The OpenAI API: **from:** [**datacamp**](https://www.datacamp.com/tutorial/guide-to-openai-api-on-tutorial-best-practices)
 
+- How To Deploy a Node + React App on Vercel **from:** [Fireship](https://www.youtube.com/watch?v=mrHNSanmqQ4)
 
 
 
