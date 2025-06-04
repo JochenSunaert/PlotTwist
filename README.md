@@ -9,7 +9,7 @@ It's a dynamic, real-time experience that blends collaborative storytelling with
 ---
 
 ## 🚀 Live Demo
-
+- **Play here** You can test the game on: https://www.jochensunaert.be/
 - **Frontend (React)** hosted on Vercel: [https://plot-twist-seven.vercel.app/](https://plot-twist-seven.vercel.app/)
 - **Backend (Node.js + WebSockets)** hosted on Render: [https://plottwist-w5lc.onrender.com](https://plottwist-w5lc.onrender.com)
 
