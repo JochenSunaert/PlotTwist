@@ -26,7 +26,7 @@ It's a dynamic, real-time experience that blends collaborative storytelling with
 * [Contact](#-contact)
 * [License](#license)
 * [Acknowledgements](#-acknowledgements)
-
+* [Sources](#-sources)
 ---
 
 ## 🚀 Live Demo
@@ -296,6 +296,15 @@ This project is licensed under the MIT License. You can find the full text of th
 ---
 
 ## 🙏 Acknowledgements
+
+* **Motion Background Videos:** A special thank you to the creators of the engaging background videos used in the game, sourced from various motion graphics libraries.
+* **OpenAI:** For providing the powerful API that drives the game's innovative AI storytelling and evaluation features.
+* Thanks to all early testers and those who provided valuable feedback!
+
+---
+
+
+## 🙏 sources
 
 * **Motion Background Videos:** A special thank you to the creators of the engaging background videos used in the game, sourced from various motion graphics libraries.
 * **OpenAI:** For providing the powerful API that drives the game's innovative AI storytelling and evaluation features.
