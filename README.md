@@ -334,26 +334,28 @@ We utilized a selection of motion backgrounds to enhance the visual experience o
 
 - Learn Socket.io In 30 Minutes **from:** [**Web Dev Simplified**](https://www.youtube.com/watch?v=ZKEqqIO7n-k)
 -  How Web Sockets work | Deep Dive **from:** [**Bytemonk**](https://www.youtube.com/watch?v=G0_e02DdH7I)
-
 -  openAI: The basics, **from:** [**net ninja**](https://www.youtube.com/watch?v=C4ve8Kjw9ZY&list=PL4cUxeGkcC9ipdXMDVcGimIVMG_Z6-Vsu)
 -  Master React Router in an easy way  **from:** [**Nova Designs**](link)
 -  A Beginner's Guide to The OpenAI API: **from:** [**datacamp**](https://www.datacamp.com/tutorial/guide-to-openai-api-on-tutorial-best-practices)
 
-- How To Deploy a Node + React App on Vercel **from:** [Fireship](https://www.youtube.com/watch?v=mrHNSanmqQ4)
 
+---
+### game inspiration by:
+
+- [Jackbox](https://jackbox.tv/)
+- [death by AI](https://deathbyai.gg/)
+- [ kahoot ](https://kahoot.it/)
+- [gartic phone:](https://garticphone.com/)
+- [scribble.io](https://skribblgame.io/)
 
 
 ---
 ### other:
 
 - for small bug fixes, or issues: [**stackoverflow**](https://stackoverflow.com)
-
 - for quick google searches:  [**Grepper**]( https://addons.mozilla.org/nl/firefox/addon/grepper/)
-
 - assisting me to write this readme: [**Gemeni**]( https://gemini.google.com)
-
 - helping me with the idea & mapping of this project [**Chatgpt**]( https://chatgpt.com/)
-
 - assisting me with code: [**Github copilot**]( https://github.com/features/copilot)
 
 ---
