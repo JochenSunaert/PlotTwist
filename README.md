@@ -26,7 +26,7 @@ It's a dynamic, real-time experience that blends collaborative storytelling with
 * [Contact](#-contact)
 * [License](#license)
 * [Acknowledgements](#-acknowledgements)
-* [Sources](#-sources)
+* [Sources & References](#-sources-&-references)
 ---
 
 ## 🚀 Live Demo
