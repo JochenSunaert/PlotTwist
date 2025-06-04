@@ -35,11 +35,11 @@ It's a dynamic, real-time experience that blends collaborative storytelling with
 
 ## 🧩 Project Structure
 
-```
+
 /PlotTwist
 ├── /client      - React frontend application
 └── /server      - Node.js backend server with WebSocket logic
-```
+
 
 * **`client`**:
     * Developed with **React** using **Vite** for a fast development experience.
