@@ -9,7 +9,7 @@ It's a dynamic, real-time experience that blends collaborative storytelling with
 ---
 
 ## 🚀 Live Demo
-### - ***Play here*** You can test the game on: https://www.jochensunaert.be/
+### ***Play here*** You can test the game on: https://www.jochensunaert.be/
 
 - **Frontend (React)** hosted on Vercel
 - **Backend (Node.js + WebSockets)** hosted on Render
