@@ -318,6 +318,8 @@ This section provides a detailed list of all external resources that contributed
 * **OpenAI API:** Official Documentation - [https://platform.openai.com/docs](https://platform.openai.com/docs)
 * **Vite:** Official Website - [https://vitejs.dev/](https://vitejs.dev/)
 * **npm (Node Package Manager):** Official Website - [https://www.npmjs.com/](https://www.npmjs.com/)
+* **vercel to host frontend** - [https://vercel.com](https://vercel.com)
+* **Render to host backend** - [https://render.com/](https://render.com/)
 
 ---
 ### Motion Background Video Assets
