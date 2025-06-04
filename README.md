@@ -1,5 +1,5 @@
 
-```markdown
+
 # PlotTwist
 
 PlotTwist is an **interactive, multi-device AI party game** where players use their smartphones to collaboratively devise creative solutions to absurd scenarios displayed on a main PC screen. An intelligent AI then evaluates the submitted answers, determining which had the most impact, was the most original, or ultimately led to victory!
