@@ -60,7 +60,7 @@ You can test the game live at: [https://www.jochensunaert.be/](https://www.joche
 
 PlotTwist is designed for **2-8 players** for the best experience. One device acts as the **"Host"** on a main screen (typically a PC connected to a large display or projector), while other players use their **smartphones** (clients) to join the game and interact.
 
-**Objective:** Collaboratively create a story and outwit the AI's judgment to score the most points for your team!
+**Objective:** Fight eachother with a original story & give creative answers to outwit the AI's judgment to score the most points for your team, and yourself!
 
 **Game Flow:**
 
@@ -126,7 +126,7 @@ PlotTwist is designed for **2-8 players** for the best experience. One device ac
 3.  **Start the backend server:** (In a new terminal window)
 
     ```bash
-    cd server
+    cd server (You should be in server/server)
     node index.js
     ```
 
@@ -204,7 +204,7 @@ PlotTwist is designed for **2-8 players** for the best experience. One device ac
 
 We're always looking to enhance PlotTwist! Here are some potential future developments:
 
-* Implement persistent player profiles and stats.
+* Implement AI profile pictures & entertainement.
 * Add more AI evaluation metrics (e.g., humor, creativity, coherence).
 * Expand the library of predefined prompts for greater variety.
 * Improve mobile responsiveness and overall UI/UX of the client interface.
@@ -218,7 +218,7 @@ We're always looking to enhance PlotTwist! Here are some potential future develo
 Encountering issues? Here are some common problems and their solutions:
 
 * **Connection Issues:**
-    * Ensure your backend server is actively running (`node index.js` in the `/server` directory).
+    * Ensure your backend server is actively running (`node index.js` in the `/server/server` directory).
     * Verify that the `socket.io-client` URL in `client/src/socket.js` correctly points to your backend (e.g., `http://localhost:3001` for local development, or your deployed Render URL).
     * Check your browser's developer console (F12) for any WebSocket connection errors.
 * **OpenAI API Errors:**
@@ -277,9 +277,9 @@ We welcome and appreciate contributions to PlotTwist! If you have ideas for new 
 | `/client`           | React frontend application with Vite build setup   |
 | `/client/src`       | React components, socket client setup, CSS         |
 | `/server`           | Node.js backend with Express, Socket.IO, OpenAI API|
-| `/server/index.js`  | Main server entry point for Socket.IO and Express  |
-| `/server/rooms.js`  | Logic for managing game rooms and player connections|
-| `/server/gameEvents.js`| Core game logic, phase transitions, AI integration |
+| `/server/server/index.js`  | Main server entry point for Socket.IO and Express  |
+| `/server/server/rooms.js`  | Logic for managing game rooms and player connections|
+| `/server/server/game.js`| Core game logic, phase transitions, AI integration |
 
 ---
 
