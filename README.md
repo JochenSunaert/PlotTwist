@@ -58,7 +58,7 @@ You can test the game live at: [https://www.jochensunaert.be/](https://www.joche
 
 ## 🎮 How to Play
 
-PlotTwist is designed for **2-8 players** for the best experience. One player acts as the **"Host"** on a main screen (typically a PC connected to a large display or projector), while other players use their **smartphones** (clients) to join the game and interact.
+PlotTwist is designed for **2-8 players** for the best experience. One device acts as the **"Host"** on a main screen (typically a PC connected to a large display or projector), while other players use their **smartphones** (clients) to join the game and interact.
 
 **Objective:** Collaboratively create a story and outwit the AI's judgment to score the most points for your team!
 
