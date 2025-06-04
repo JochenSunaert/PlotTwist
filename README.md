@@ -306,8 +306,9 @@ This project is licensed under the MIT License. You can find the full text of th
 
 ## 📚 Sources & References
 
-This section provides a detailed list of all external resources, including official documentation, libraries, frameworks, assets, and any significant tutorials or articles that contributed to the development of PlotTwist.
+This section provides a detailed list of all external resources that contributed to the development of PlotTwist.
 
+---
 ### Core Technologies & Libraries
 
 * **React:** Official Documentation - [https://react.dev/](https://react.dev/)
@@ -318,27 +319,37 @@ This section provides a detailed list of all external resources, including offic
 * **Vite:** Official Website - [https://vitejs.dev/](https://vitejs.dev/)
 * **npm (Node Package Manager):** Official Website - [https://www.npmjs.com/](https://www.npmjs.com/)
 
+---
 ### Motion Background Video Assets
 
-We utilized a selection of high-quality motion backgrounds to enhance the visual experience of each game phase. Please find their respective sources below:
+We utilized a selection of motion backgrounds to enhance the visual experience of each game phase. Please find their respective sources below:
 
-* **game video's Video (`Color-geometry-10_4k_1.mp4`):** Sourced from [**_Platform Name (e.g., Pexels, Mixkit, Pixabay)_**] by [**_Creator's Name/Alias (e.g., cottonbro studio)_**].
+* **game video's Video (`Color-geometry-1_4k_1.mp4`):** Sourced from [**_Platform Name (e.g., Pexels, Mixkit, Pixabay)_**] by [**_Creator's Name/Alias (e.g., cottonbro studio)_**].
     * [**_Direct Link to Video Source Page (e.g., https://www.pexels.com/videos/some-video-id)_**]
 
-### Learning Resources & Tutorials (Optional - Add your specific sources here)
 
-This project's architecture and specific implementations were guided by various learning materials and community discussions. If you followed any specific tutorials, articles, courses, or adapted unique code snippets, please list them here:
+---
+### Learning Resources & Tutorials 
 
-* **Real-time Game Development with Socket.IO:** (e.g., A specific course or blog series on building multiplayer games.)
-    * [**_Link to Tutorial/Article/Course URL_**]
-* **Advanced React State Management Patterns:** (e.g., If you used a specific pattern like Context API, Redux, Zustand, and learned it from a notable guide.)
-    * [**_Link to Tutorial/Article/Course URL_**]
-* **Effective Prompt Engineering for LLMs:** (e.g., If you learned specific techniques for guiding the OpenAI API from a particular resource.)
-    * [**_Link to Article/Guide URL_**]
-* **General Web Development Best Practices:** (e.g., MDN Web Docs, freeCodeCamp, etc., if they were particularly influential for common patterns.)
-    * [**_Link to Resource_**]
-    *(Add more specific links here if you found particular Stack Overflow answers, GitHub gists, or code examples crucial to your development.)*
 
+- Learn Socket.io In 30 Minutes **from:** [**Web Dev Simplified**](https://www.youtube.com/watch?v=ZKEqqIO7n-k)
+-  How Web Sockets work | Deep Dive **from:** [**Bytemonk**](https://www.youtube.com/watch?v=G0_e02DdH7I)
+
+-  openAI: The basics, **from:** [**net ninja**](https://www.youtube.com/watch?v=C4ve8Kjw9ZY&list=PL4cUxeGkcC9ipdXMDVcGimIVMG_Z6-Vsu)
+-   Master React Router in an easy way  **from:** [**Nova Designs**](link)
+-  A Beginner's Guide to The OpenAI API:  [**datacamp**](https://www.datacamp.com/tutorial/guide-to-openai-api-on-tutorial-best-practices)
+
+
+
+
+---
+### Debugging sources:
+
+- for small bug fixes, or issues: [**stackoverflow**](https://stackoverflow.com)
+
+- for quick google searches:  [**Grepper**]( https://addons.mozilla.org/nl/firefox/addon/grepper/)
+
+- assisting me to write this readme: [**Gemeni**]( https://gemini.google.com)
 
 ---
 
