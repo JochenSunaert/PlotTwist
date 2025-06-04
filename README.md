@@ -322,19 +322,8 @@ This section provides a detailed list of all external resources, including offic
 
 We utilized a selection of high-quality motion backgrounds to enhance the visual experience of each game phase. Please find their respective sources below:
 
-* **Lobby Video (`Color-geometry-10_4k_1.mp4`):** Sourced from [**_Platform Name (e.g., Pexels, Mixkit, Pixabay)_**] by [**_Creator's Name/Alias (e.g., cottonbro studio)_**].
+* **game video's Video (`Color-geometry-10_4k_1.mp4`):** Sourced from [**_Platform Name (e.g., Pexels, Mixkit, Pixabay)_**] by [**_Creator's Name/Alias (e.g., cottonbro studio)_**].
     * [**_Direct Link to Video Source Page (e.g., https://www.pexels.com/videos/some-video-id)_**]
-* **Prompt Video (`Color-geometry-6_4k_1.mp4`):** Sourced from [**_Platform Name_**] by [**_Creator's Name/Alias_**].
-    * [**_Direct Link to Video Source Page_**]
-* **Answer Video (`Color-geometry-12_4k_1.mp4`):** Sourced from [**_Platform Name_**] by [**_Creator's Name/Alias_**].
-    * [**_Direct Link to Video Source Page_**]
-* **Waiting Video (`Color-geometry-9_4k_1.mp4`):** Sourced from [**_Platform Name_**] by [**_Creator's Name/Alias_**].
-    * [**_Direct Link to Video Source Page_**]
-* **Display Answers Video (`Color-geometry-11_4k_1.mp4`):** Sourced from [**_Platform Name_**] by [**_Creator's Name/Alias_**].
-    * [**_Direct Link to Video Source Page_**]
-* **Results Video (`Color-geometry-1.mp4`):** Sourced from [**_Platform Name_**] by [**_Creator's Name/Alias_**].
-    * [**_Direct Link to Video Source Page_**]
-    *(Please replace the bold italic placeholders with the actual names and links for each video.)*
 
 ### Learning Resources & Tutorials (Optional - Add your specific sources here)
 
