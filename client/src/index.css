@@ -571,6 +571,11 @@ font-size: 1.2em;
   text-align: left;
 }
 
+.answers-list li{
+margin-bottom: 2%;
+
+}
+
 .player-answers h5{
   text-align:  left !important;
 }

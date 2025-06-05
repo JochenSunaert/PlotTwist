@@ -1,5 +1,5 @@
 const { createRoom, joinRoom, handleDisconnect } = require("./rooms");
-const { startGame, handleSubmitPrompt, handleSubmitAnswer, handleStartNextRound, handleRestartGame} = require("./game"); // Import handleSubmitAnswer
+const { startGame, handleSubmitPrompt, handleSubmitAnswer, handleStartNextRound, handleRestartGame, handleContinueToResults, handleSpeechDone } = require("./game"); // Import new game functions
 
 module.exports = (io) => {
   const rooms = {};      // Room data
@@ -20,10 +20,12 @@ module.exports = (io) => {
     // Submit a prompt
     socket.on("submit-prompt", (data) => handleSubmitPrompt(socket, io, rooms, gameStates, data));
 
+    // Restart the game
     socket.on("restart-game", () => {
       handleRestartGame(socket, io, rooms, gameStates);
     });
 
+    // Start the next round
     socket.on("start-next-round", (data) => {
       handleStartNextRound(socket, io, rooms, gameStates, data);
     });
@@ -39,6 +41,20 @@ module.exports = (io) => {
         console.log(`📝 Player ${socket.id} submitted their answer in room ${roomCode}`);
       }
     });
+
+    // --- NEW EVENT LISTENERS FOR CONTINUE TO RESULTS ---
+
+    // Host signals that speech/story narration is done
+    socket.on("speech-done", () => {
+      handleSpeechDone(socket, io, rooms);
+    });
+
+    // Host signals to continue to results/evaluation phase
+    socket.on("continue-to-results", () => {
+      handleContinueToResults(socket, io, rooms);
+    });
+
+    // --- END NEW EVENT LISTENERS ---
 
     // Handle disconnects
     socket.on("disconnect", () => handleDisconnect(socket, io, rooms));

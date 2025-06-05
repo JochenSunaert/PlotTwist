@@ -1,4 +1,4 @@
-// gameEvents.js
+// game.js
 
 const openai = require("./openai");
 const { startTimer } = require('./timerUtils');
@@ -470,6 +470,56 @@ function startAnswerPhase(io, roomCode, gameStates, rooms) {
     }
   }, 1000);
 }
+function handleSpeechDone(socket, io, rooms) {
+  const roomCode = socket.roomCode;
+  const room = rooms[roomCode];
+
+  if (!room) {
+    console.warn(`Room ${roomCode} not found for speech-done signal from ${socket.id}`);
+    return;
+  }
+
+  if (room && socket.id === room.hostId) {
+    // *** CRITICAL FIX: Update server-side room state FIRST ***
+    room.isSpeechDone = true; // <--- THIS LINE IS ABSOLUTELY ESSENTIAL HERE
+
+    console.log(`Host ${socket.id} in room ${roomCode} reports speech is done. Broadcasting to all clients.`);
+    io.to(roomCode).emit("speech-done"); // Now broadcast, client state will update
+  } else {
+    console.warn(`Non-host ${socket.id} tried to emit 'speech-done' in room ${roomCode}. Ignoring.`);
+    // Optionally, emit an error back to the trying client if needed
+  }
+}
+
+function handleContinueToResults(socket, io, rooms) {
+  const roomCode = socket.roomCode;
+  const room = rooms[roomCode]; // Assuming 'room' object is available
+
+  if (!roomCode || !room) {
+    console.warn(`❌ Continue to results failed: Room ${roomCode} not found for socket ${socket.id}.`);
+    socket.emit("error-message", "Room not found.");
+    return;
+  }
+
+  // *** CHECK: This is the check that's currently failing ***
+  if (!room.isSpeechDone) {
+    console.warn(`❌ Continue to results failed: Speech is not done in room ${roomCode}.`);
+    socket.emit("error-message", "Story narration must be complete before continuing.");
+    return;
+  }
+
+  // If the checks pass, proceed:
+  // Update server's game phase (assuming `room.gamePhase` exists)
+  room.gamePhase = "evaluation"; // Update the server's source of truth for the phase
+
+  // Reset isSpeechDone for the next round or subsequent uses if needed
+  // This is important so it doesn't stay 'true' indefinitely.
+  room.isSpeechDone = false; // Reset for potential future speech narration
+
+  console.log(`Host ${socket.id} in room ${roomCode} clicked "Continue to Results". Broadcasting proceed to evaluation.`);
+  io.to(roomCode).emit("proceed-to-evaluation"); // Broadcast to all clients to transition
+}
+
 
 // ############################### GENERATING STORY ###############################
 // This function generates a story based on the prompt and player responses using OpenAI's API.
@@ -650,5 +700,7 @@ module.exports = {
   evaluateAnswers,
   handleStartNextRound,
   handleRestartGame,
-  endGame
+  endGame,
+    handleSpeechDone,
+  handleContinueToResults,
 };

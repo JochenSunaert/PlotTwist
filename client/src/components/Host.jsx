@@ -1,7 +1,8 @@
+// Host.js
 import { useEffect, useState, useRef } from "react";
-import socket from "./socket"; 
+import socket from "./socket";
 import { useNavigate } from 'react-router-dom';
-import { speak } from "./utils/speech"; 
+import { speak } from "./utils/speech";
 
 const videos = {
   waiting: "/videos/motion_backgrounds3/Color-geometry-1_4k_1.mp4",
@@ -94,7 +95,9 @@ const Host = () => {
   const handleContinueToResults = () => {
     speechSynthesis.cancel();
     setStoryAcknowledged(true);
-    setGamePhase("evaluation");
+    // Emit to server to advance all clients
+    socket.emit("continue-to-results"); // <--- Host emits this
+    setGamePhase("evaluation"); // Host's own view updates immediately
   };
 
   // NEW CONSOLIDATED useEffect for Story display and TTS
@@ -110,8 +113,7 @@ const Host = () => {
         speechSynthesis.cancel();
       }
       setDisplayedText("");
-      setIsSpeechDone(false);
-      // setSpeechInProgress(false); // No need for this state if only this hook controls speech
+      // No longer setting setIsSpeechDone(false) here, as it's reset by server's next-round/round-reset
     };
 
     if (gamePhase !== "story" || !story) {
@@ -120,7 +122,7 @@ const Host = () => {
     }
 
     setDisplayedText(""); // Crucially clear text when entering the story phase
-    setIsSpeechDone(false);
+    setIsSpeechDone(false); // Reset speech status at the start of story phase
     speechSynthesis.cancel(); // Ensure no leftover speech
 
     const voices = speechSynthesis.getVoices();
@@ -132,6 +134,7 @@ const Host = () => {
     const speakAndDisplayNextSentence = () => {
       if (sentenceIndex >= sentences.length) {
         setIsSpeechDone(true);
+        socket.emit("speech-done"); // <--- HOST EMITS SPEECH DONE TO SERVER
         return;
       }
 
@@ -159,6 +162,7 @@ const Host = () => {
       currentUtterance.onerror = (e) => {
         console.error("SpeechSynthesis error:", e.error);
         setIsSpeechDone(true);
+        socket.emit("speech-done"); // <--- EMIT even on error to unblock
       };
 
       speechSynthesis.speak(currentUtterance);
@@ -216,11 +220,8 @@ const Host = () => {
     setShowFullPrompt(false);
     setFadeOut(false);
     setIsStoryLoading(false);
-    setIsSpeechDone(false);
+    setIsSpeechDone(false); // Reset on restart
     setDisplayedText(""); // Reset
-    // setCurrentStorySentences([]); // No longer explicitly needed as state
-    // setCurrentSentenceIndex(0); // No longer explicitly needed as state
-    // setSpeechInProgress(false); // No longer explicitly needed as state
 
     if (audioRef.current) {
       audioRef.current.pause();
@@ -242,9 +243,6 @@ const Host = () => {
       return () => clearTimeout(timeout);
     }
   }, [gamePhase]);
-
-  // Removed the duplicate useEffect for "story-loading" and "story-phase"
-  // as the main story useEffect now handles all display logic.
 
   useEffect(() => {
     socket.emit("create-room");
@@ -312,10 +310,7 @@ const Host = () => {
       setAnswerTimer(null);
       setGamePhase("prompt");
       setDisplayedText("");
-      // setCurrentStorySentences([]); // No longer explicitly needed as state
-      // setCurrentSentenceIndex(0); // No longer explicitly needed as state
-      setIsSpeechDone(false);
-      // setSpeechInProgress(false); // No longer explicitly needed as state
+      setIsSpeechDone(false); // Reset on round reset
       speechSynthesis.cancel();
     });
 
@@ -324,6 +319,14 @@ const Host = () => {
       setGameStarted(false);
       setFinalResults(placements);
     });
+
+    // New listener for proceeding to evaluation (from server, triggered by Host)
+    socket.on("proceed-to-evaluation", () => {
+      setGamePhase("evaluation");
+      setStoryAcknowledged(true); // Host's own state for acknowledgment
+      console.log("Host: Received proceed-to-evaluation, moving to evaluation.");
+    });
+
 
     return () => {
       socket.off("room-created");
@@ -337,12 +340,13 @@ const Host = () => {
       socket.off("answer-timer-update");
       socket.off("player-submitted");
       socket.off("answers-collected");
-      socket.off("story-loading"); // Don't forget to clean up this one too
+      socket.off("story-loading");
       socket.off("story-generated");
       socket.off("evaluation-results");
       socket.off("round-reset");
       socket.off("game-ended");
       socket.off("answer-phase-ended");
+      socket.off("proceed-to-evaluation"); // Clean up new listener
     };
   }, []);
 
@@ -371,12 +375,16 @@ const Host = () => {
     console.log(`🔁 Requesting next round (${nextRound})`);
     socket.emit("start-next-round", { round: nextRound });
     setIsNextRoundReady(false);
+    setIsSpeechDone(false); // Reset for next round
   };
 
   useEffect(() => {
     switch (gamePhase) {
       case "waiting":
-        speak("Welcome! Once all players are in, press the button to begin.");
+        // Only speak if music hasn't started, preventing duplicate announcements
+        if (!musicStarted) {
+           speak("Welcome! Once all players are in, press the button to begin.");
+        }
         break;
       case "prompt":
         speak(
@@ -408,7 +416,7 @@ const Host = () => {
       default:
         break;
     }
-  }, [gamePhase]);
+  }, [gamePhase, musicStarted]); // Added musicStarted as dependency
 
   useEffect(() => {
     if (!musicStarted || !audioRef.current) return;
@@ -624,7 +632,7 @@ const Host = () => {
                   <button
                     onClick={handleContinueToResults}
                     className="continue-button"
-                    disabled={!isSpeechDone}
+                    disabled={!isSpeechDone} // This button is for the Host only
                   >
                     Continue to Results
                   </button>

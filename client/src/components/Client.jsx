@@ -6,8 +6,11 @@ const videos = {
   lobby: "/videos/motion_backgrounds3/Color-geometry-10_4k_1.mp4",
   prompt: "/videos/motion_backgrounds3/Color-geometry-6_4k_1.mp4",
   answer: "/videos/motion_backgrounds3/Color-geometry-12_4k_1.mp4",
-  waiting: "/videos/motion_backgrounds3/Color-geometry-9_4k_1.mp4", // Or a different video for waiting
-  // Add other phases as needed, or default to lobby video
+  waiting: "/videos/motion_backgrounds3/Color-geometry-9_4k_1.mp4",
+  displayAnswers: "/videos/motion_backgrounds3/Color-geometry-11_4k_1.mp4", // Or where story/answers are shown
+  story: "/videos/motion_backgrounds3/Color-geometry-4_4k_1.mp4", // Explicit story video
+  evaluation: "/videos/motion_backgrounds3/Color-geometry-7_4k_1.mp4", // For AI evaluation results
+  final: "/videos/motion_backgrounds3/Color-geometry-1.mp4", // For final game-over screen
 };
 
 const Client = () => {
@@ -24,22 +27,23 @@ const Client = () => {
   const [currentRound, setCurrentRound] = useState(0);
   const [totalRounds, setTotalRounds] = useState(0);
   const [submittedPrompt, setSubmittedPrompt] = useState("");
-  const [timer, setTimer] = useState(null); // Timer for prompt phase
+  const [timer, setTimer] = useState(null);
   const [answer, setAnswer] = useState("");
   const [answerPhase, setAnswerPhase] = useState(false);
   const [answersSubmitted, setAnswersSubmitted] = useState(false);
-  const [answerTimer, setAnswerTimer] = useState(null); // Timer for answer phase
+  const [answerTimer, setAnswerTimer] = useState(null);
   const [gamePhase, setGamePhase] = useState("lobby");
-  const [allPlayerAnswers, setAllPlayerAnswers] = useState([]); // State to store all answers
-  const [isGameStarter, setIsGameStarter] = useState(false); // New state for game starter privilege
+  const [allPlayerAnswers, setAllPlayerAnswers] = useState([]);
+  const [isGameStarter, setIsGameStarter] = useState(false); // State for game starter privilege
+  const [isSpeechDone, setIsSpeechDone] = useState(false); // State for speech completion
 
   const answerRef = useRef(answer);
   const answersSubmittedRef = useRef(answersSubmitted);
   const promptSubmittedRef = useRef(false);
   const promptRef = useRef(prompt);
-  const startGameButtonRef = useRef(null); // Ref for the "Everybody's in" button
+  const startGameButtonRef = useRef(null);
+  const continueButtonRef = useRef(null);
 
-  // Update refs whenever their corresponding state changes
   useEffect(() => {
     answerRef.current = answer;
   }, [answer]);
@@ -52,12 +56,19 @@ const Client = () => {
     promptRef.current = prompt;
   }, [prompt]);
 
-  // Scroll to the start game button if it becomes visible
   useEffect(() => {
     if (isGameStarter && joinedRoom && !gameStarted && startGameButtonRef.current) {
       startGameButtonRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   }, [isGameStarter, joinedRoom, gameStarted]);
+
+  useEffect(() => {
+    // CONDITION: Use isGameStarter
+    if (isGameStarter && gamePhase === "waiting" && submittedPrompt && allPlayerAnswers.length > 0 && isSpeechDone && continueButtonRef.current) {
+      continueButtonRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [isGameStarter, gamePhase, submittedPrompt, allPlayerAnswers.length, isSpeechDone]);
+
 
   const predefinedPrompts = [
     "A notorious thief has stolen a valuable diamond from the city's museum and it's your job to either catch the thief or help them escape.",
@@ -84,18 +95,16 @@ const Client = () => {
   ];
 
   const handleJoin = () => {
-    // Reset isGameStarter *before* emitting join-room
-    // This ensures a clean slate for the server to determine new starter status
-    setIsGameStarter(false); // <--- ADDED THIS LINE
+    setIsGameStarter(false); // Reset before emitting join-room
     if (name.trim() && roomCode.trim()) {
       socket.emit("join-room", { roomCode: roomCode.trim().toUpperCase(), name });
     }
   };
 
-  const handleStartGame = () => { // Function to start the game
+  const handleStartGame = () => {
     console.log("Attempting to start game from client in room:", roomCode);
     setErrorMessage("");
-    socket.emit("start-game"); // Emit the start-game event to the server
+    socket.emit("start-game");
   };
 
   const handleSubmitPrompt = useCallback(() => {
@@ -106,12 +115,12 @@ const Client = () => {
     const promptToSend = promptRef.current.trim();
     console.log(`Client: Manual/Auto-submitting prompt: "${promptToSend}"`);
     socket.emit("submit-prompt", { prompt: promptToSend });
-    promptSubmittedRef.current = true; // Mark as manually submitted by this client
-  }, []); // Depend on nothing as promptRef.current is already the latest
-
+    promptSubmittedRef.current = true;
+  }, []);
+  
   const handleRandomPrompt = () => {
     const randomPrompt = predefinedPrompts[Math.floor(Math.random() * predefinedPrompts.length)];
-    setPrompt(randomPrompt); // Update state, which also updates promptRef
+    setPrompt(randomPrompt);
   };
 
   const handleSubmitAnswer = useCallback(() => {
@@ -122,8 +131,13 @@ const Client = () => {
     const answerToSend = answerRef.current.trim();
     console.log(`Client: Manual/Auto-submitting answer: "${answerToSend}"`);
     socket.emit("submit-answer", { playerName: name, answer: answerToSend });
-    setAnswersSubmitted(true); // Mark as submitted immediately on the client
+    setAnswersSubmitted(true);
   }, [name]);
+
+  const handleContinueToResults = () => {
+    // Only the game starter (host) can click this. It emits to the server.
+    socket.emit("continue-to-results");
+  };
 
   useEffect(() => {
     const handleJoinedRoom = () => {
@@ -152,8 +166,8 @@ const Client = () => {
       setIsPromptPlayer(isPromptPlayer);
       setWaitingForPrompt(!isPromptPlayer);
       setGamePhase(isPromptPlayer ? "prompt" : "waiting");
-      promptSubmittedRef.current = false; // Reset for the new prompt player
-      setPrompt(""); // Clear prompt input for new prompt player
+      promptSubmittedRef.current = false;
+      setPrompt("");
     };
 
     const handlePromptSelection = ({ playerName }) => {
@@ -161,47 +175,34 @@ const Client = () => {
     };
 
     const handlePromptSubmitted = ({ prompt }) => {
-      setSubmittedPrompt(prompt || "Prompt is empty"); // Use the prompt from the server
+      setSubmittedPrompt(prompt || "Prompt is empty");
       setWaitingForPrompt(false);
-      setIsPromptPlayer(false); // No longer the prompt player
+      setIsPromptPlayer(false);
       setGamePhase("waiting");
-      // Server has confirmed prompt submission, so client doesn't need to auto-submit anymore.
     };
 
     const handleTimerUpdate = (timeLeft) => {
-      // Set the visual timer to be one second behind the backend timer.
-      // Ensure it doesn't go below 0.
       setTimer(Math.max(0, timeLeft - 1));
-
-      // ***** CRITICAL CHANGE FOR PROMPT AUTO-SUBMISSION *****
-      // Trigger submission when timeLeft is 1, to get ahead of server's 0-second action.
-      // This means when the server says 1, the client auto-submits, and visually shows 0.
       if (isPromptPlayer && timeLeft === 1 && !promptSubmittedRef.current) {
         console.log("Client: Prompt timer almost ended (1s left), auto-submitting current prompt.");
-        handleSubmitPrompt(); // This will submit promptRef.current
+        handleSubmitPrompt();
       }
     };
 
     const handleStartAnswerPhase = () => {
       setAnswerPhase(true);
-      setAnswersSubmitted(false); // Reset this for the new answer phase
-      setAnswer(""); // Clear previous answer for the new round
+      setAnswersSubmitted(false);
+      setAnswer("");
       setGamePhase("answer");
-      setAllPlayerAnswers([]); // Clear previous answers when starting new answer phase
+      setAllPlayerAnswers([]);
       console.log("Client: Started answer phase.");
     };
 
     const handleAnswerTimerUpdate = (timeLeft) => {
-      // Set the visual answer timer to be one second behind the backend timer.
-      // Ensure it's not below 0.
       setAnswerTimer(Math.max(0, timeLeft - 1));
-
-      // ***** CRITICAL CHANGE FOR ANSWER AUTO-SUBMISSION *****
-      // Trigger submission when timeLeft is 1, to get ahead of server's 0-second action.
-      // This means when the server says 1, the client auto-submits, and visually shows 0.
       if (timeLeft === 1 && !answersSubmittedRef.current) {
         console.log("Client: Answer timer almost ended (1s left), auto-submitting current answer.");
-        handleSubmitAnswer(); // This will submit the current value of answerRef.current
+        handleSubmitAnswer();
       }
     };
 
@@ -209,9 +210,16 @@ const Client = () => {
       console.log("Client: Answer phase ended (event received from server). All answers:", allPlayerAnswers);
       setAnswerPhase(false);
       setAnswerTimer(null);
-      setAnswersSubmitted(true); // Ensure answersSubmitted is true on the client
-      setAllPlayerAnswers(allPlayerAnswers); // Store all answers received from the server
+      setAnswersSubmitted(true);
+      setAllPlayerAnswers(allPlayerAnswers);
       setGamePhase("waiting"); // Transition to waiting phase after answers are received
+      // Server will then signal 'speech-done' once the host finishes narration
+    };
+
+    const handleSpeechDone = () => {
+      // This listener handles the server's broadcast of 'speech-done'
+      setIsSpeechDone(true);
+      console.log("Client: Received 'speech-done' from server. Speech is done.");
     };
 
     const handleNextRound = ({ currentRound, totalRounds, promptPlayerName }) => {
@@ -219,51 +227,69 @@ const Client = () => {
       setTotalRounds(totalRounds);
       setPromptPlayerName(promptPlayerName);
       setSubmittedPrompt("");
-      setAnswer(""); // Important: Clear answer for next round
-      setAnswersSubmitted(false); // Important: Reset for next round
+      setAnswer("");
+      setAnswersSubmitted(false);
       setAnswerPhase(false);
-      setIsPromptPlayer(false); // Assume not prompt player until told otherwise
-      promptSubmittedRef.current = false; // Reset for new round
-      setPrompt(""); // Clear prompt input
-      setAllPlayerAnswers([]); // Clear all player answers for the new round
+      setIsPromptPlayer(false);
+      promptSubmittedRef.current = false;
+      setPrompt("");
+      setAllPlayerAnswers([]);
       setGamePhase("waiting");
+      setIsSpeechDone(false); // Reset for new round
       console.log("Client: Starting next round.");
     };
 
-    const handleGameEnded = () => {
-      // Keep isGameStarter state as is, the `handleJoin` will reset it for new room
+   const handleGameEnded = ({ placements }) => {
+      console.log("🏁 Client: Game ended with results:", placements);
+      setGameStarted(false); // Game is officially over
+      setGamePlacements(placements); // Store final placements
+      // Reset all other relevant game states here to ensure a clean slate
       setName("");
       setRoomCode("");
       setJoinedRoom(false);
-      setGameStarted(false);
       setTeam(null);
+      setIsPromptPlayer(false);
       setPrompt("");
       setSubmittedPrompt("");
       setAnswer("");
       setAnswersSubmitted(false);
-      setAllPlayerAnswers([]); // Clear all player answers on game end
-      setGamePhase("lobby");
+      setAllPlayerAnswers([]);
+      setGeneratedStory("");
+      setEvaluationResults(null);
+      setIsGameStarter(false);
+      setIsSpeechDone(false);
+      setGamePhase("final"); // Set to a dedicated "final" phase to render final results
     };
 
     const handleRoundReset = () => {
       setSubmittedPrompt("");
-      setIsPromptPlayer(false); // Client is not prompt player until told otherwise
+      setIsPromptPlayer(false);
       setWaitingForPrompt(true);
       setGamePhase("waiting");
-      setAnswer(""); // Ensure answer is cleared on round reset
-      setAnswersSubmitted(false); // Ensure this is reset for new round
-      setPrompt(""); // Clear prompt input
-      promptSubmittedRef.current = false; // Reset prompt submission status for new round
-      setAllPlayerAnswers([]); // Clear all player answers on round reset
+      setAnswer("");
+      setAnswersSubmitted(false);
+      setPrompt("");
+      promptSubmittedRef.current = false;
+      setAllPlayerAnswers([]);
+      setIsSpeechDone(false); // Reset for new round
       console.log("Client: Round reset.");
     };
+
+   const handleProceedToEvaluation = () => {
+      setGamePhase("evaluation");
+      console.log("Client: Received proceed-to-evaluation from server, moving to evaluation.");
+      // Clear story/evaluation results if they were previously displayed in a different phase
+      setGeneratedStory("");
+      setEvaluationResults(null);
+    };
+
 
     // Socket Event Listeners
     socket.on("joined-room", handleJoinedRoom);
     socket.on("error-message", handleErrorMessage);
     socket.on("team-assigned", handleTeamAssigned);
     socket.on("game-started", handleGameStarted);
-    socket.on("is-game-starter", handleIsGameStarter); // New listener for game starter status
+    socket.on("is-game-starter", handleIsGameStarter);
     socket.on("prompt-player", handlePromptPlayer);
     socket.on("prompt-selection", handlePromptSelection);
     socket.on("prompt-submitted", handlePromptSubmitted);
@@ -271,9 +297,11 @@ const Client = () => {
     socket.on("start-answer-phase", handleStartAnswerPhase);
     socket.on("answer-timer-update", handleAnswerTimerUpdate);
     socket.on("answer-phase-ended", handleAnswerPhaseEnded);
+    socket.on("speech-done", handleSpeechDone); // <--- Client listens for this from the server
     socket.on("next-round", handleNextRound);
     socket.on("game-ended", handleGameEnded);
     socket.on("round-reset", handleRoundReset);
+    socket.on("proceed-to-evaluation", handleProceedToEvaluation);
 
     // Cleanup function for unmounting
     return () => {
@@ -281,7 +309,7 @@ const Client = () => {
       socket.off("error-message", handleErrorMessage);
       socket.off("team-assigned", handleTeamAssigned);
       socket.off("game-started", handleGameStarted);
-      socket.off("is-game-starter", handleIsGameStarter); // Cleanup new listener
+      socket.off("is-game-starter", handleIsGameStarter);
       socket.off("prompt-player", handlePromptPlayer);
       socket.off("prompt-selection", handlePromptSelection);
       socket.off("prompt-submitted", handlePromptSubmitted);
@@ -289,29 +317,28 @@ const Client = () => {
       socket.off("start-answer-phase", handleStartAnswerPhase);
       socket.off("answer-timer-update", handleAnswerTimerUpdate);
       socket.off("answer-phase-ended", handleAnswerPhaseEnded);
+      socket.off("speech-done", handleSpeechDone); // <--- Cleanup
       socket.off("next-round", handleNextRound);
       socket.off("game-ended", handleGameEnded);
       socket.off("round-reset", handleRoundReset);
+      socket.off("proceed-to-evaluation", handleProceedToEvaluation);
     };
-  }, [handleSubmitAnswer, handleSubmitPrompt, isPromptPlayer, name]); // Added 'name' to dependencies for handleSubmitAnswer
+  }, [handleSubmitAnswer, handleSubmitPrompt, isPromptPlayer, name]);
 
   return (
-    <div className="client-container"> {/* Main container for the client screen */}
-      {/* Background video */}
+    <div className="client-container">
       <video
-        key={gamePhase} // Forces video reload/change when gamePhase updates
+        key={gamePhase}
         className="background-video"
-        src={videos[gamePhase] || videos.lobby} // Default to lobby video if phase not found
+        src={videos[gamePhase] || videos.lobby}
         autoPlay
         muted
         loop
         playsInline
       />
 
-      {/* Overlay for UI content */}
       <div className="overlay-content">
         <img className="clientlogo" src="./photos/plottwistlogowhite.png"></img>
-        {/* <p className="team-display">You are in team: <h3>{team}</h3></p> */}
 
         {gamePhase === "lobby" && !joinedRoom && (
           <div className="lobby-form">
@@ -342,7 +369,6 @@ const Client = () => {
               <button onClick={handleStartGame} className="button startbutton" ref={startGameButtonRef}>
                 Everybody's in
               </button>
-              
             )}
             {errorMessage && <p className="error-message">{errorMessage}</p>}
           </div>
@@ -399,8 +425,7 @@ const Client = () => {
 
         {gamePhase === "waiting" && submittedPrompt && (
           <div>
-            <h4 className="submitted-prompt">{submittedPrompt}</h4>
-            <p>Look at the big screen to see how the story unfolds</p>
+
             {allPlayerAnswers.length > 0 && (
               <div className="player-answers">
                 <h5>All Player Answers:</h5>
@@ -412,6 +437,17 @@ const Client = () => {
                   ))}
                 </ul>
               </div>
+            )}
+            {/* Display "Continue to Results" button only for the game starter (host) */}
+            {isGameStarter && gamePhase === "waiting" && submittedPrompt && allPlayerAnswers.length > 0 && (
+              <button
+                onClick={handleContinueToResults}
+                className="continue-button"
+                // disabled={!isSpeechDone}
+                ref={continueButtonRef}
+              >
+                Continue to Results
+              </button>
             )}
           </div>
         )}
