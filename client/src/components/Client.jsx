@@ -37,6 +37,11 @@ const Client = () => {
   const [isGameStarter, setIsGameStarter] = useState(false); // State for game starter privilege
   const [isSpeechDone, setIsSpeechDone] = useState(false); // State for speech completion
 
+  const [generatedStory, setGeneratedStory] = useState(""); // To display the AI-generated story (optional for this phase, but good to have)
+const [evaluationResults, setEvaluationResults] = useState(null); // To store AI evaluation summary (winning team, impactful player, etc.)
+const [gamePlacements, setGamePlacements] = useState([]); // Used for the final game results screen, but good to have declared
+const [players, setPlayers] = useState([]); // CRUCIAL: To store the list of players with their updated scores
+
   const answerRef = useRef(answer);
   const answersSubmittedRef = useRef(answersSubmitted);
   const promptSubmittedRef = useRef(false);
@@ -100,6 +105,11 @@ const Client = () => {
       socket.emit("join-room", { roomCode: roomCode.trim().toUpperCase(), name });
     }
   };
+
+  const handleStartNextRound = () => {
+  console.log("Client: Host requesting to start next round.");
+  socket.emit("start-next-round");
+};
 
   const handleStartGame = () => {
     console.log("Attempting to start game from client in room:", roomCode);
@@ -283,6 +293,21 @@ const Client = () => {
       setEvaluationResults(null);
     };
 
+    const handleEvaluationResults = (data) => {
+  console.log("Client: Received evaluation results:", data);
+  setEvaluationResults(data); // Set the summary evaluation results (winning team, etc.)
+
+  // IMPORTANT: Update the players state with their new scores
+  if (data && data.players) {
+    setPlayers(data.players);
+  }
+  // If your server also sends the generated story with evaluation results, update it:
+  if (data && data.generatedStory) {
+    setGeneratedStory(data.generatedStory);
+  }
+};
+
+
 
     // Socket Event Listeners
     socket.on("joined-room", handleJoinedRoom);
@@ -302,6 +327,7 @@ const Client = () => {
     socket.on("game-ended", handleGameEnded);
     socket.on("round-reset", handleRoundReset);
     socket.on("proceed-to-evaluation", handleProceedToEvaluation);
+    socket.on("evaluation-results", handleEvaluationResults);
 
     // Cleanup function for unmounting
     return () => {
@@ -322,6 +348,7 @@ const Client = () => {
       socket.off("game-ended", handleGameEnded);
       socket.off("round-reset", handleRoundReset);
       socket.off("proceed-to-evaluation", handleProceedToEvaluation);
+      socket.off("evaluation-results", handleEvaluationResults);
     };
   }, [handleSubmitAnswer, handleSubmitPrompt, isPromptPlayer, name]);
 
@@ -443,7 +470,7 @@ const Client = () => {
               <button
                 onClick={handleContinueToResults}
                 className="continue-button"
-                // disabled={!isSpeechDone}
+                 disabled={!isSpeechDone}
                 ref={continueButtonRef}
               >
                 Continue to Results
@@ -472,8 +499,51 @@ const Client = () => {
             {answerTimer !== null && <p className="timer-display">⏳ Answer Timer: {answerTimer} seconds</p>}
           </div>
         )}
+        {gamePhase === "evaluation" && (
+  <div className="evaluation-phase-container">
+    <h2>Evaluation Results</h2>
+    {/* Display winning team, impactful player, original player from server */}
+    {evaluationResults && ( // Assuming evaluationResults is a state variable passed from server
+      <div className="results-summary">
+        <p>Winning Team: <strong>{evaluationResults.winningTeam}</strong></p>
+        <p>Most Impactful Player: <strong>{evaluationResults.impactfulPlayer}</strong></p>
+        <p>Most Original Player: <strong>{evaluationResults.originalPlayer}</strong></p>
+      </div>
+    )}
+
+    {/* Display individual player scores and contributions */}
+    {players && players.length > 0 && ( // Assuming 'players' state includes scores from server
+      <div className="player-scores">
+        <h3>Player Scores:</h3>
+        <ul>
+          {players.map((player) => (
+            <li key={player.id}>
+              {player.name} ({player.team}): {player.score} points
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
+
+    {/* Host-only button to start the next round or end the game */}
+    {isGameStarter && ( // Or isHost if you created that state
+      <button
+        onClick={handleStartNextRound} // Function to emit 'start-next-round' to server
+        className="next-round-button"
+      >
+        {currentRound < totalRounds - 1 ? "Start Next Round" : "End Game"}
+      </button>
+    )}
+
+    {/* Optionally, show a "Waiting for Host" message for non-hosts */}
+    {!isGameStarter && (
+      <p className="waiting-message">Waiting for the host to start the next round...</p>
+    )}
+  </div>
+)}
       </div>
     </div>
+    
   );
 };
 
