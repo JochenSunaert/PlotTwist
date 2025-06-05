@@ -10,7 +10,6 @@ const videos = {
   displayAnswers: "/videos/motion_backgrounds3/Color-geometry-11_4k_1.mp4", // Or where story/answers are shown
   story: "/videos/motion_backgrounds3/Color-geometry-4_4k_1.mp4", // Explicit story video
   evaluation: "/videos/motion_backgrounds3/Color-geometry-7_4k_1.mp4", // For AI evaluation results
-  final: "/videos/motion_backgrounds3/Color-geometry-1.mp4", // For final game-over screen
 };
 
 const Client = () => {
@@ -268,7 +267,7 @@ const [players, setPlayers] = useState([]); // CRUCIAL: To store the list of pla
       setEvaluationResults(null);
       setIsGameStarter(false);
       setIsSpeechDone(false);
-      setGamePhase("final"); // Set to a dedicated "final" phase to render final results
+      setGamePhase("lobby"); // Set to a dedicated "final" phase to render final results
     };
 
     const handleRoundReset = () => {
@@ -422,11 +421,9 @@ const [players, setPlayers] = useState([]); // CRUCIAL: To store the list of pla
 
             <p className="textleft">Write an exciting scenario where heroes must save the day and villains try to sabotage. Make it clear what’s at stake so everyone knows what to do.</p>
             <div className="block-ruby">
-              <h4>hint: </h4>
-              <p> press random to get some idea's</p>
             </div>
             <textarea
-              placeholder="Write your own prompt or choose one."
+              placeholder="Press random to get some idea's!"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
             />
@@ -483,12 +480,10 @@ const [players, setPlayers] = useState([]); // CRUCIAL: To store the list of pla
           <div className="answer-section">
             <p className="team-display">You are in team: <h3>{team}</h3></p>
             <h4 className="prompt-for-answer">{submittedPrompt}</h4>
-            <p className="textleft bottomtext">
-              Describe what you would do in this scenario. Heroes try to fix it, villains try to break it. The story continues based on your answer!
-            </p>
+
 
             <textarea
-              placeholder="Write your answer here..."
+              placeholder="Describe what you would do in this scenario. Heroes try to fix it, villains try to break it."
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
               disabled={answersSubmitted || isPromptPlayer}
@@ -496,7 +491,7 @@ const [players, setPlayers] = useState([]); // CRUCIAL: To store the list of pla
             <button onClick={handleSubmitAnswer} disabled={answersSubmitted || isPromptPlayer}>
               {answersSubmitted ? "Answer Submitted" : "Submit Answer"}
             </button>
-            {answerTimer !== null && <p className="timer-display">⏳ Answer Timer: {answerTimer} seconds</p>}
+            {answerTimer !== null && <p className="timer-display">⏳ Time left: {answerTimer} seconds</p>}
           </div>
         )}
         {gamePhase === "evaluation" && (
@@ -531,13 +526,13 @@ const [players, setPlayers] = useState([]); // CRUCIAL: To store the list of pla
         onClick={handleStartNextRound} // Function to emit 'start-next-round' to server
         className="next-round-button"
       >
-        {currentRound < totalRounds - 1 ? "Start Next Round" : "End Game"}
+        {currentRound < totalRounds - 1 ? "Start Next Round" : "Start Next Round"}
       </button>
     )}
 
     {/* Optionally, show a "Waiting for Host" message for non-hosts */}
     {!isGameStarter && (
-      <p className="waiting-message">Waiting for the host to start the next round...</p>
+      <h4 className="waiting-message">Waiting for the host to start the next round...</h4>
     )}
   </div>
 )}
