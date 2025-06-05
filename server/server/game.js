@@ -127,7 +127,7 @@ function startRound(io, roomCode, gameStates, rooms, roundNumber) {
 
   gameState.promptTimer = startTimer(
     /*timertijd*/
-    20, // Prompt timer duration
+    60, // Prompt timer duration
     (timeLeft) => {
       console.log(`⏳ Timer: ${timeLeft}s remaining for room ${roomCode}`);
       io.to(roomCode).emit("timer-update", timeLeft);
@@ -388,7 +388,7 @@ async function processAllAnswers(io, roomCode, gameStates, rooms) {
 // It emits updates to the clients and handles the end of the phase.
 function startAnswerPhase(io, roomCode, gameStates, rooms) {
   /*timertijd */
-  const timerDuration = 20;
+  const timerDuration = 95;
   let timeLeft = timerDuration;
 
   const gameState = gameStates[roomCode];

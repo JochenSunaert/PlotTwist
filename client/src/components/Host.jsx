@@ -126,7 +126,7 @@ const Host = () => {
     speechSynthesis.cancel(); // Ensure no leftover speech
 
     const voices = speechSynthesis.getVoices();
-    const voice = voices.find(v => v.name === "Google US English") || voices[0];
+    const voice = voices.find(v => v.lang.startsWith("en")) || voices[0];
     const sentences = story.match(/[^.!?]+[.!?]+/g) || [story];
 
     let sentenceIndex = 0;
