@@ -1,4 +1,68 @@
-// Client.js
+// This file defines the Client component, which represents a player's interface in the game.
+// It manages the client-side game state, handles user input (joining rooms, submitting prompts/answers),
+// displays game information (timers, team assignments, prompts, answers, evaluation results),
+// and communicates with the game server via WebSockets (socket.io).
+
+// ############################### Key State Variables & Their Purpose ###############################
+
+// - **name (string)**: Stores the player's chosen name.
+// - **roomCode (string)**: Stores the room code the player wishes to join or has joined.
+// - **joinedRoom (boolean)**: True if the player has successfully joined a room.
+// - **errorMessage (string)**: Displays error messages received from the server.
+// - **gameStarted (boolean)**: True once the game officially begins.
+// - **team (string | null)**: The team assigned to the player ("Hero" or "Villain").
+// - **isPromptPlayer (boolean)**: True if the current player is designated to provide the prompt for the round.
+// - **prompt (string)**: The prompt text entered by the `isPromptPlayer`.
+// - **waitingForPrompt (boolean)**: True if the player is waiting for the prompt player to submit a prompt.
+// - **promptPlayerName (string)**: The name of the player currently providing the prompt.
+// - **currentRound (number)**: The current round number (0-indexed).
+// - **totalRounds (number)**: The total number of rounds in the game.
+// - **submittedPrompt (string)**: The prompt that has been officially submitted for the current round.
+// - **timer (number | null)**: Countdown timer for the prompt submission phase.
+// - **answer (string)**: The answer text entered by the player for the current prompt.
+// - **answerPhase (boolean)**: True when the game is in the answer submission phase.
+// - **answersSubmitted (boolean)**: True if the player has submitted their answer for the current round.
+// - **answerTimer (number | null)**: Countdown timer for the answer submission phase.
+// - **gamePhase (string)**: Controls which UI elements are displayed, representing the current phase of the game (e.g., "lobby", "prompt", "answer", "waiting", "story", "evaluation"). This also dynamically changes the background video.
+// - **allPlayerAnswers (Array<Object>)**: An array containing all players' submitted answers for the round, used for display after the answer phase.
+// - **isGameStarter (boolean)**: True if the current player is the one who initiated the game (typically the host who created the room). This player has special controls like starting the game or continuing to the next round/phase.
+// - **isSpeechDone (boolean)**: True when the host's story narration (Text-to-Speech) has finished playing, allowing the game starter to proceed.
+// - **generatedStory (string)**: Stores the AI-generated story for display (primarily on the Host side, but included here for completeness).
+// - **evaluationResults (Object | null)**: Stores the summary of the AI's evaluation (winning team, most impactful player, most original player).
+// - **gamePlacements (Array<Object>)**: Stores the final player rankings at the end of the entire game.
+// - **players (Array<Object>)**: **CRUCIAL**: This state holds the list of all players currently in the game, including their names, teams, and most importantly, their **updated scores** after each evaluation round. This is essential for displaying scores and final rankings.
+
+// ############################### Ref Variables for Immediate Access ###############################
+
+// - **answerRef**: A ref to `answer` state, allowing its current value to be accessed within `useCallback` without recreating the function on every `answer` change.
+// - **answersSubmittedRef**: A ref to `answersSubmitted` state, for similar reasons as `answerRef`.
+// - **promptSubmittedRef**: A ref to `promptSubmitted` state.
+// - **promptRef**: A ref to `prompt` state.
+// - **startGameButtonRef**: A ref to the "Everybody's in" button to enable scrolling it into view for the game starter.
+// - **continueButtonRef**: A ref to the "Continue to Results" button to enable scrolling it into view for the game starter.
+
+// ############################### Key Functions ###############################
+
+// - **handleJoin()**: Emits a "join-room" event to the server with the player's name and desired room code.
+// - **handleStartNextRound()**: Emits a "start-next-round" event to the server, initiated by the game starter.
+// - **handleStartGame()**: Emits a "start-game" event to the server, initiated by the game starter.
+// - **handleSubmitPrompt()**: Emits a "submit-prompt" event to the server with the entered prompt. Uses `useCallback` and `promptSubmittedRef` to prevent duplicate submissions and ensure the latest prompt value is used.
+// - **handleRandomPrompt()**: Selects a random prompt from a predefined list and sets it as the current prompt.
+// - **handleSubmitAnswer()**: Emits a "submit-answer" event to the server with the player's submitted answer. Uses `useCallback` and `answersSubmittedRef` to prevent duplicate submissions.
+// - **handleContinueToResults()**: Emits a "continue-to-results" event to the server, allowing the game starter to advance to the evaluation phase.
+
+// ############################### useEffect for Socket Listeners and UI Effects ###############################
+
+// The main `useEffect` hook sets up all the Socket.IO event listeners. These listeners are responsible for:
+// - Updating local state based on events from the server (e.g., room joined, errors, game started, team assigned, prompt player designated, timers, etc.).
+// - Handling the flow of the game phases (lobby -> prompt -> answer -> waiting -> evaluation -> lobby/game over).
+// - Triggering auto-submission of prompts/answers if timers run out.
+// - Cleaning up listeners when the component unmounts to prevent memory leaks.
+
+// Additional `useEffect` hooks handle:
+// - Keeping `useRef` values synchronized with their corresponding `useState` values.
+// - Scrolling the "Everybody's in" and "Continue to Results" buttons into view for the game starter when relevant.
+
 import { useEffect, useState, useRef, useCallback } from "react";
 import socket from "./socket";
 
@@ -7,9 +71,9 @@ const videos = {
   prompt: "/videos/motion_backgrounds3/Color-geometry-6_4k_1.mp4",
   answer: "/videos/motion_backgrounds3/Color-geometry-12_4k_1.mp4",
   waiting: "/videos/motion_backgrounds3/Color-geometry-9_4k_1.mp4",
-  displayAnswers: "/videos/motion_backgrounds3/Color-geometry-11_4k_1.mp4", // Or where story/answers are shown
-  story: "/videos/motion_backgrounds3/Color-geometry-4_4k_1.mp4", // Explicit story video
-  evaluation: "/videos/motion_backgrounds3/Color-geometry-7_4k_1.mp4", // For AI evaluation results
+  displayAnswers: "/videos/motion_backgrounds3/Color-geometry-11_4k_1.mp4",
+  story: "/videos/motion_backgrounds3/Color-geometry-4_4k_1.mp4",
+  evaluation: "/videos/motion_backgrounds3/Color-geometry-7_4k_1.mp4",
 };
 
 const Client = () => {
@@ -33,13 +97,13 @@ const Client = () => {
   const [answerTimer, setAnswerTimer] = useState(null);
   const [gamePhase, setGamePhase] = useState("lobby");
   const [allPlayerAnswers, setAllPlayerAnswers] = useState([]);
-  const [isGameStarter, setIsGameStarter] = useState(false); // State for game starter privilege
-  const [isSpeechDone, setIsSpeechDone] = useState(false); // State for speech completion
+  const [isGameStarter, setIsGameStarter] = useState(false);
+  const [isSpeechDone, setIsSpeechDone] = useState(false);
 
-  const [generatedStory, setGeneratedStory] = useState(""); // To display the AI-generated story (optional for this phase, but good to have)
-const [evaluationResults, setEvaluationResults] = useState(null); // To store AI evaluation summary (winning team, impactful player, etc.)
-const [gamePlacements, setGamePlacements] = useState([]); // Used for the final game results screen, but good to have declared
-const [players, setPlayers] = useState([]); // CRUCIAL: To store the list of players with their updated scores
+  const [generatedStory, setGeneratedStory] = useState("");
+  const [evaluationResults, setEvaluationResults] = useState(null);
+  const [gamePlacements, setGamePlacements] = useState([]);
+  const [players, setPlayers] = useState([]);
 
   const answerRef = useRef(answer);
   const answersSubmittedRef = useRef(answersSubmitted);
@@ -67,7 +131,6 @@ const [players, setPlayers] = useState([]); // CRUCIAL: To store the list of pla
   }, [isGameStarter, joinedRoom, gameStarted]);
 
   useEffect(() => {
-    // CONDITION: Use isGameStarter
     if (isGameStarter && gamePhase === "waiting" && submittedPrompt && allPlayerAnswers.length > 0 && isSpeechDone && continueButtonRef.current) {
       continueButtonRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
     }
@@ -99,16 +162,16 @@ const [players, setPlayers] = useState([]); // CRUCIAL: To store the list of pla
   ];
 
   const handleJoin = () => {
-    setIsGameStarter(false); // Reset before emitting join-room
+    setIsGameStarter(false);
     if (name.trim() && roomCode.trim()) {
       socket.emit("join-room", { roomCode: roomCode.trim().toUpperCase(), name });
     }
   };
 
   const handleStartNextRound = () => {
-  console.log("Client: Host requesting to start next round.");
-  socket.emit("start-next-round");
-};
+    console.log("Client: Host requesting to start next round.");
+    socket.emit("start-next-round");
+  };
 
   const handleStartGame = () => {
     console.log("Attempting to start game from client in room:", roomCode);
@@ -126,7 +189,7 @@ const [players, setPlayers] = useState([]); // CRUCIAL: To store the list of pla
     socket.emit("submit-prompt", { prompt: promptToSend });
     promptSubmittedRef.current = true;
   }, []);
-  
+
   const handleRandomPrompt = () => {
     const randomPrompt = predefinedPrompts[Math.floor(Math.random() * predefinedPrompts.length)];
     setPrompt(randomPrompt);
@@ -144,7 +207,6 @@ const [players, setPlayers] = useState([]); // CRUCIAL: To store the list of pla
   }, [name]);
 
   const handleContinueToResults = () => {
-    // Only the game starter (host) can click this. It emits to the server.
     socket.emit("continue-to-results");
   };
 
@@ -221,12 +283,10 @@ const [players, setPlayers] = useState([]); // CRUCIAL: To store the list of pla
       setAnswerTimer(null);
       setAnswersSubmitted(true);
       setAllPlayerAnswers(allPlayerAnswers);
-      setGamePhase("waiting"); // Transition to waiting phase after answers are received
-      // Server will then signal 'speech-done' once the host finishes narration
+      setGamePhase("waiting");
     };
 
     const handleSpeechDone = () => {
-      // This listener handles the server's broadcast of 'speech-done'
       setIsSpeechDone(true);
       console.log("Client: Received 'speech-done' from server. Speech is done.");
     };
@@ -244,15 +304,14 @@ const [players, setPlayers] = useState([]); // CRUCIAL: To store the list of pla
       setPrompt("");
       setAllPlayerAnswers([]);
       setGamePhase("waiting");
-      setIsSpeechDone(false); // Reset for new round
+      setIsSpeechDone(false);
       console.log("Client: Starting next round.");
     };
 
-   const handleGameEnded = ({ placements }) => {
+    const handleGameEnded = ({ placements }) => {
       console.log("🏁 Client: Game ended with results:", placements);
-      setGameStarted(false); // Game is officially over
-      setGamePlacements(placements); // Store final placements
-      // Reset all other relevant game states here to ensure a clean slate
+      setGameStarted(false);
+      setGamePlacements(placements);
       setName("");
       setRoomCode("");
       setJoinedRoom(false);
@@ -267,7 +326,7 @@ const [players, setPlayers] = useState([]); // CRUCIAL: To store the list of pla
       setEvaluationResults(null);
       setIsGameStarter(false);
       setIsSpeechDone(false);
-      setGamePhase("lobby"); // Set to a dedicated "final" phase to render final results
+      setGamePhase("lobby");
     };
 
     const handleRoundReset = () => {
@@ -280,35 +339,29 @@ const [players, setPlayers] = useState([]); // CRUCIAL: To store the list of pla
       setPrompt("");
       promptSubmittedRef.current = false;
       setAllPlayerAnswers([]);
-      setIsSpeechDone(false); // Reset for new round
+      setIsSpeechDone(false);
       console.log("Client: Round reset.");
     };
 
-   const handleProceedToEvaluation = () => {
+    const handleProceedToEvaluation = () => {
       setGamePhase("evaluation");
       console.log("Client: Received proceed-to-evaluation from server, moving to evaluation.");
-      // Clear story/evaluation results if they were previously displayed in a different phase
       setGeneratedStory("");
       setEvaluationResults(null);
     };
 
     const handleEvaluationResults = (data) => {
-  console.log("Client: Received evaluation results:", data);
-  setEvaluationResults(data); // Set the summary evaluation results (winning team, etc.)
+      console.log("Client: Received evaluation results:", data);
+      setEvaluationResults(data);
 
-  // IMPORTANT: Update the players state with their new scores
-  if (data && data.players) {
-    setPlayers(data.players);
-  }
-  // If your server also sends the generated story with evaluation results, update it:
-  if (data && data.generatedStory) {
-    setGeneratedStory(data.generatedStory);
-  }
-};
+      if (data && data.players) {
+        setPlayers(data.players);
+      }
+      if (data && data.generatedStory) {
+        setGeneratedStory(data.generatedStory);
+      }
+    };
 
-
-
-    // Socket Event Listeners
     socket.on("joined-room", handleJoinedRoom);
     socket.on("error-message", handleErrorMessage);
     socket.on("team-assigned", handleTeamAssigned);
@@ -321,14 +374,13 @@ const [players, setPlayers] = useState([]); // CRUCIAL: To store the list of pla
     socket.on("start-answer-phase", handleStartAnswerPhase);
     socket.on("answer-timer-update", handleAnswerTimerUpdate);
     socket.on("answer-phase-ended", handleAnswerPhaseEnded);
-    socket.on("speech-done", handleSpeechDone); // <--- Client listens for this from the server
+    socket.on("speech-done", handleSpeechDone);
     socket.on("next-round", handleNextRound);
     socket.on("game-ended", handleGameEnded);
     socket.on("round-reset", handleRoundReset);
     socket.on("proceed-to-evaluation", handleProceedToEvaluation);
     socket.on("evaluation-results", handleEvaluationResults);
 
-    // Cleanup function for unmounting
     return () => {
       socket.off("joined-room", handleJoinedRoom);
       socket.off("error-message", handleErrorMessage);
@@ -342,7 +394,7 @@ const [players, setPlayers] = useState([]); // CRUCIAL: To store the list of pla
       socket.off("start-answer-phase", handleStartAnswerPhase);
       socket.off("answer-timer-update", handleAnswerTimerUpdate);
       socket.off("answer-phase-ended", handleAnswerPhaseEnded);
-      socket.off("speech-done", handleSpeechDone); // <--- Cleanup
+      socket.off("speech-done", handleSpeechDone);
       socket.off("next-round", handleNextRound);
       socket.off("game-ended", handleGameEnded);
       socket.off("round-reset", handleRoundReset);
@@ -353,10 +405,11 @@ const [players, setPlayers] = useState([]); // CRUCIAL: To store the list of pla
 
   return (
     <div className="client-container">
+      {/* The background video changes dynamically based on the current gamePhase */}
       <video
         key={gamePhase}
         className="background-video"
-        src={videos[gamePhase] || videos.lobby}
+        src={videos[gamePhase] || videos.lobby} // Defaults to 'lobby' video if gamePhase is not found
         autoPlay
         muted
         loop
@@ -366,6 +419,7 @@ const [players, setPlayers] = useState([]); // CRUCIAL: To store the list of pla
       <div className="overlay-content">
         <img className="clientlogo" src="./photos/plottwistlogowhite.png"></img>
 
+        {/* Phase: Lobby - Before joining a room */}
         {gamePhase === "lobby" && !joinedRoom && (
           <div className="lobby-form">
             <h4>Your name</h4>
@@ -386,11 +440,26 @@ const [players, setPlayers] = useState([]); // CRUCIAL: To store the list of pla
             {errorMessage && <p className="error-message">{errorMessage}</p>}
           </div>
         )}
-
+        <img
+          src="/photos/cornerlogo.png"
+          alt="Corner Decoration"
+          style={{
+            position: 'fixed',
+            bottom: '0px',
+            right: '0px',
+            width: '150px',
+            height: 'auto',
+            zIndex: 10000,
+            display: 'none',
+          }}
+          className="corner-photo"
+        />
+        {/* Phase: Lobby - After joining a room, waiting for game to start */}
         {gamePhase === "lobby" && joinedRoom && !gameStarted && (
           <div className="lobby-message">
             <h3 className="joined-message"> You joined room {roomCode.toUpperCase()}</h3>
             <p>Please wait for the host to start the game...</p>
+            {/* Only visible to the player designated as the game starter */}
             {isGameStarter && (
               <button onClick={handleStartGame} className="button startbutton" ref={startGameButtonRef}>
                 Everybody's in
@@ -400,6 +469,7 @@ const [players, setPlayers] = useState([]); // CRUCIAL: To store the list of pla
           </div>
         )}
 
+        {/* Phase: Start - Brief transition when game first begins */}
         {gamePhase === "start" && (
           <div className="game-start-message">
             <h2>🎉 Game Started!</h2>
@@ -414,6 +484,7 @@ const [players, setPlayers] = useState([]); // CRUCIAL: To store the list of pla
           </div>
         )}
 
+        {/* Phase: Prompt - Visible only to the prompt player */}
         {gamePhase === "prompt" && isPromptPlayer && (
           <div className="prompt-section">
             <p className="team-display">You are in team: <h3>{team}</h3></p>
@@ -437,37 +508,39 @@ const [players, setPlayers] = useState([]); // CRUCIAL: To store the list of pla
           </div>
         )}
 
+        {/* Phase: Waiting - For players waiting for the prompt to be submitted */}
         {gamePhase === "waiting" && waitingForPrompt && (
           <div>
             <p className="waiting-message">
               <p className="team-display">You are in team: <h3>{team}</h3></p>
               Prepare your {team} thoughts while waiting for {promptPlayerName} to submit a prompt...
             </p>
-            <h4>Time left: {timer}s</h4>
+            <h4 class="time-left">Time left: {timer}s</h4>
           </div>
         )}
 
+        {/* Phase: Waiting - After prompt and answers are submitted, waiting for host to continue */}
         {gamePhase === "waiting" && submittedPrompt && (
           <div>
-
             {allPlayerAnswers.length > 0 && (
               <div className="player-answers">
                 <h5>All Player Answers:</h5>
                 <ul className="answers-list">
                   {allPlayerAnswers.map((ans, index) => (
                     <li key={index}>
-                      <strong>{ans.playerName} ({ans.team}):</strong> {ans.answer === "" ? "No answer provided" : ans.answer}
+                      <strong>{ans.playerName} ({ans.team}):</strong><br/> {ans.answer === "" ? "No answer provided" : ans.answer}
+          
                     </li>
                   ))}
                 </ul>
               </div>
             )}
-            {/* Display "Continue to Results" button only for the game starter (host) */}
+            {/* "Continue to Results" button is only visible to the game starter, and only after speech is done */}
             {isGameStarter && gamePhase === "waiting" && submittedPrompt && allPlayerAnswers.length > 0 && (
               <button
                 onClick={handleContinueToResults}
                 className="continue-button"
-                 disabled={!isSpeechDone}
+                disabled={!isSpeechDone}
                 ref={continueButtonRef}
               >
                 Continue to Results
@@ -476,69 +549,67 @@ const [players, setPlayers] = useState([]); // CRUCIAL: To store the list of pla
           </div>
         )}
 
+        {/* Phase: Answer - When players submit their answers */}
         {gamePhase === "answer" && (
           <div className="answer-section">
             <p className="team-display">You are in team: <h3>{team}</h3></p>
             <h4 className="prompt-for-answer">{submittedPrompt}</h4>
-
-
             <textarea
               placeholder="Describe what you would do in this scenario. Heroes try to fix it, villains try to break it."
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
-              disabled={answersSubmitted || isPromptPlayer}
+              disabled={answersSubmitted || isPromptPlayer} // Disable if already submitted or is prompt player
             />
             <button onClick={handleSubmitAnswer} disabled={answersSubmitted || isPromptPlayer}>
               {answersSubmitted ? "Answer Submitted" : "Submit Answer"}
             </button>
-            {answerTimer !== null && <p className="timer-display">⏳ Time left: {answerTimer} seconds</p>}
+            {answerTimer !== null && <p className="timer-display">Time left: {answerTimer} seconds</p>}
           </div>
         )}
+
+        {/* Phase: Evaluation - Displaying round results and scores */}
         {gamePhase === "evaluation" && (
-  <div className="evaluation-phase-container">
-    <h2>Evaluation Results</h2>
-    {/* Display winning team, impactful player, original player from server */}
-    {evaluationResults && ( // Assuming evaluationResults is a state variable passed from server
-      <div className="results-summary">
-        <p>Winning Team: <strong>{evaluationResults.winningTeam}</strong></p>
-        <p>Most Impactful Player: <strong>{evaluationResults.impactfulPlayer}</strong></p>
-        <p>Most Original Player: <strong>{evaluationResults.originalPlayer}</strong></p>
-      </div>
-    )}
+          <div className="evaluation-phase-container">
+            <h2>Evaluation Results</h2>
+            {evaluationResults && (
+              <div className="results-summary">
+                <p>Winning Team: <strong>{evaluationResults.winningTeam}</strong></p>
+                <p>Most Impactful Player: <strong>{evaluationResults.impactfulPlayer}</strong></p>
+                <p>Most Original Player: <strong>{evaluationResults.originalPlayer}</strong></p>
+              </div>
+            )}
 
-    {/* Display individual player scores and contributions */}
-    {players && players.length > 0 && ( // Assuming 'players' state includes scores from server
-      <div className="player-scores">
-        <h3>Player Scores:</h3>
-        <ul>
-          {players.map((player) => (
-            <li key={player.id}>
-              {player.name} ({player.team}): {player.score} points
-            </li>
-          ))}
-        </ul>
-      </div>
-    )}
+            {players && players.length > 0 && (
+              <div className="player-scores">
+                <h3>Player Scores:</h3>
+                <ul>
+                  {players.map((player) => (
+                    <li key={player.id}>
+                      {player.name} ({player.team}): {player.score} points
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
-    {/* Host-only button to start the next round or end the game */}
-    {isGameStarter && ( // Or isHost if you created that state
-      <button
-        onClick={handleStartNextRound} // Function to emit 'start-next-round' to server
-        className="next-round-button"
-      >
-        {currentRound < totalRounds - 1 ? "Start Next Round" : "Start Next Round"}
-      </button>
-    )}
+            {/* "Start Next Round" button is only visible to the game starter */}
+            {isGameStarter && (
+              <button
+                onClick={handleStartNextRound}
+                className="next-round-button"
+              >
+                {currentRound < totalRounds - 1 ? "Start Next Round" : "Start Next Round"}
+              </button>
+            )}
 
-    {/* Optionally, show a "Waiting for Host" message for non-hosts */}
-    {!isGameStarter && (
-      <h4 className="waiting-message">Waiting for the host to start the next round...</h4>
-    )}
-  </div>
-)}
+            {/* Message for non-game starters waiting for the next round */}
+            {!isGameStarter && (
+              <h4 className="waiting-message">Waiting for the host to start the next round...</h4>
+            )}
+          </div>
+        )}
       </div>
     </div>
-    
   );
 };
 
