@@ -871,6 +871,7 @@ textarea {
     align-self: center;
     justify-self: center;
     font-size: 2.5em;
+    grid-column: 2;
 }
 
 .selection__overlay { /* Overlay content specific to selection screen */
