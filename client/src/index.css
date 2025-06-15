@@ -98,12 +98,13 @@ button:focus-visible {
 /* Background Video Styling (Used by both Host and Client) */
 .background-video {
     position: absolute;
-    top: 50%; /* Center vertically */
+    top: 60%; /* Center vertically */
     left: 50%; /* Center horizontally */
     min-width: 100%;
     min-height: 100%;
     width: auto;
     height: auto;
+    
     z-index: -1; /* Behind other content */
     transform: translate(-50%, -50%); /* Adjust for perfect centering */
     background-size: cover;
@@ -152,6 +153,7 @@ button:focus-visible {
     border-radius: 10px;
     max-width: 80%;
     display: grid;
+    max-height: 80%;
 }
 
 /* Buttons (General and Reusable) */
@@ -474,6 +476,7 @@ textarea {
     font-family: 'Courier New', monospace;
     text-align: center;
     animation: fadeIn 0.8s ease; /* Animation for story appearance */
+    margin-top: 8%;
 }
 
 .displayed-story{
@@ -629,6 +632,11 @@ textarea {
     margin-bottom: 1.5rem;
 }
 
+.evaluation-results{
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+}
+
 .evaluation-results p {
     font-size: 1.1rem;
     margin: 0.5rem 0;
@@ -639,6 +647,8 @@ textarea {
     text-align: left;
     max-width: 600px;
     margin-inline: auto;
+    margin: 2%;
+
 }
 
 .points-header {
@@ -696,7 +706,7 @@ textarea {
 }
 
 .clientlogo { /* Logo specific to the client view */
-    width: 20%;
+    width: 15%;
     align-self: center;
     justify-self: center;
 }
@@ -788,7 +798,7 @@ textarea {
     width: 100%;
     border-bottom: #000 2px solid;
     margin-top: 0px;
-    margin-bottom: 3% !important;
+    margin-bottom: 1% !important;
 }
 
 .joined-message,

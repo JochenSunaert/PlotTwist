@@ -762,7 +762,7 @@ const Host = () => {
                   <button
                     onClick={handleContinueToResults}
                     className="continue-button"
-                    disabled={!isSpeechDone}
+                    // disabled={!isSpeechDone}
                   >
                     Continue to Results
                   </button>
