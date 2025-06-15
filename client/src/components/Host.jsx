@@ -627,10 +627,12 @@ const Host = () => {
             className="corner-photo"
           />
           {/* Game logo. */}
-          <img className="logo" src='photos/plottwistlogowhite.png' alt="Plot Twist Logo"></img>
-          <h1>The plot thickens</h1>
+          <div class ="circle-logo">
+                      <img class="logocircle" src="photos/circle.png" alt="cirkel achter logo"></img>
+                <img className="logo" src='photos/plottwistlogowhite.png' alt="Plot Twist Logo"></img>
+          </div>
           {/* Button to start music and proceed to the lobby. */}
-          <button
+          <button className="start-music"
             style={{
               padding: '1rem 2rem',
               fontSize: '1.25rem',
