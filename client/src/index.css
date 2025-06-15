@@ -254,6 +254,25 @@ textarea {
     display: none; /* Hidden by default, shown on larger screens */
 }
 
+.circle-logo{
+  display: grid;
+}
+
+.circle-logo img{
+  grid-row: 1/2;
+  grid-column: 1/2;
+  align-self: center;
+  justify-self: center;
+}
+
+.circle-logo .logocircle{
+  width: 120%;
+}
+
+.start-music{
+  margin-top: 2%;
+}
+
 /* --- Host Screen Styles --- */
 .host-container {
     position: relative;
