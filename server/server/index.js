@@ -1,3 +1,9 @@
+// This file sets up the backend server for the Plot Twist game.
+// It uses Express to create an HTTP server and Socket.IO for real-time, bidirectional
+// communication between the server and game clients.
+// The server handles game logic through registered Socket.IO handlers and provides
+// a basic endpoint for simulating game termination (primarily for testing/development).
+
 require("dotenv").config();
 const express = require("express");
 const http = require("http");

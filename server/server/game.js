@@ -1,13 +1,22 @@
-// game.js
+// This file, game.js, orchestrates the core logic and flow of the multiplayer game.
+// It manages game states, handles player actions, interacts with the OpenAI API for story generation and evaluation, and emits game updates to all connected clients via Socket.IO.
+// Every function is designed to handle specific game events, such as starting a game, submitting prompts and answers, processing results, and managing game rounds.
+// these functions are fully explained in the comments below.
 
 const openai = require("./openai");
 const { startTimer } = require('./timerUtils');
 
+// **startGame(socket, io, rooms, gameStates)**:
+// - **Purpose**: Initializes and starts a new game for a specific room.
+// - **Process**:
+//   - Validates the room and ensures enough players are present (minimum 2).
+//   - Assigns players to "Hero" or "Villain" teams randomly.
+//   - Initializes the `gameStates` object for the room, including player scores, current round, and total rounds.
+//   - Notifies individual players about their assigned teams.
+//   - Emits a "game-started" event to all clients in the room.
+//   - Calls `startRound` to begin the first round.
 
-// ############################### STARTING GAME ###############################
-// This function starts the game for a given room and initializes the game state.
 
-// ############################### STARTING GAME ###############################
 function startGame(socket, io, rooms, gameStates) {
   const roomCode = socket.roomCode;
   console.log(`🚀 Attempting to start game in room: ${roomCode} by socket ${socket.id}`);
@@ -20,22 +29,19 @@ function startGame(socket, io, rooms, gameStates) {
 
   const room = rooms[roomCode];
 
-  // --- NEW: Check if the emitting socket is the designated game starter or host ---
   if (socket.id !== room.gameStarterId && socket.id !== room.hostId) {
     console.log(`❌ Start game failed: Socket ${socket.id} is not the designated game starter or host for room ${roomCode}.`);
     io.to(socket.id).emit("error-message", "Only the designated game starter or host can start the game.");
     return;
   }
-  // --- END NEW ---
 
-  // Check if there are enough players in the room
-  if (!room.players || room.players.length < 2) { // Minimum 2 players to start a game
+  if (!room.players || room.players.length < 2) {
     console.log(`❌ Start game failed: Not enough players in room ${roomCode}. Minimum 2 required.`);
     io.to(socket.id).emit("error-message", "Cannot start the game. At least 2 players are required.");
     return;
   }
 
-  if (room.locked) { // Prevent starting an already started game
+  if (room.locked) {
     console.log(`❌ Start game failed: Game in room ${roomCode} is already locked/started.`);
     io.to(socket.id).emit("error-message", "Game has already started.");
     return;
@@ -45,12 +51,10 @@ function startGame(socket, io, rooms, gameStates) {
 
   const shuffledPlayers = room.players.sort(() => Math.random() - 0.5);
 
-  // Split players into teams: Hero and Villain
   const half = Math.ceil(shuffledPlayers.length / 2);
   const heroTeam = shuffledPlayers.slice(0, half);
   const villainTeam = shuffledPlayers.slice(half);
 
-  // Assign teams to players
   heroTeam.forEach((player) => {
     player.team = "Hero";
   });
@@ -58,7 +62,6 @@ function startGame(socket, io, rooms, gameStates) {
     player.team = "Villain";
   });
 
-  // Save players into gameStates
   gameStates[roomCode] = {
     players: room.players.map((player) => ({
       id: player.id,
@@ -66,15 +69,14 @@ function startGame(socket, io, rooms, gameStates) {
       team: player.team,
       score: 0,
     })),
-    currentRound: 0, // Start with the first round
-    totalRounds: room.players.length, // Total rounds equal to the number of players
+    currentRound: 0,
+    totalRounds: room.players.length,
     startedAt: Date.now(),
-    promptSubmitted: false, // Track if a prompt has been submitted
-    answers: [], // Add an empty answers array
+    promptSubmitted: false,
+    answers: [],
   };
   console.log(`🛠️ Initialized game state for room ${roomCode}:`, gameStates[roomCode]);
 
-  // Notify players about their teams
   console.log("📢 Notifying players about their teams...");
   heroTeam.forEach((player) => {
     console.log(`➡️ Hero: ${player.name}`);
@@ -85,16 +87,22 @@ function startGame(socket, io, rooms, gameStates) {
     io.to(player.id).emit("team-assigned", { team: "Villain" });
   });
 
-  // Emit game started event
   console.log(`📢 Game started for room ${roomCode}.`);
   io.to(roomCode).emit("game-started");
 
-  // Start the first round
-  startRound(io, roomCode, gameStates, rooms, 0); // Pass roundNumber = 0 explicitly
+  startRound(io, roomCode, gameStates, rooms, 0);
 }
 
-// ############################### STARTING ROUND ###############################
-// This function starts a new round of the game for a given room.
+
+// **startRound(io, roomCode, gameStates, rooms, roundNumber)**:
+// - **Purpose**: Initiates a new round of the game.
+// - **Process**:
+//   - Resets round-specific game state (e.g., prompt, answers).
+//   - Determines the current "prompt provider" player based on the `roundNumber`.
+//   - Notifies the prompt player and all other players about whose turn it is to provide a prompt.
+//   - Starts a timer for the prompt submission phase using `startTimer`.
+//   - If the prompt provider doesn't submit a prompt within the time limit, a random predefined prompt is automatically selected.
+//   - Transitions to the answer phase by calling `startAnswerPhase`.
 
 function startRound(io, roomCode, gameStates, rooms, roundNumber) {
   const gameState = gameStates[roomCode];
@@ -110,7 +118,7 @@ function startRound(io, roomCode, gameStates, rooms, roundNumber) {
   gameState.currentRound = roundNumber;
   gameState.promptSubmitted = false;
   gameState.answers = [];
-  gameState.prompt = ""; // Ensure prompt is reset for the new round
+  gameState.prompt = "";
 
   io.to(roomCode).emit("round-reset", { roundNumber: roundNumber + 1 });
 
@@ -126,24 +134,21 @@ function startRound(io, roomCode, gameStates, rooms, roundNumber) {
   io.to(roomCode).emit("prompt-selection", { playerName: promptProvider.name });
 
   gameState.promptTimer = startTimer(
-    /*timertijd*/
-    60, // Prompt timer duration
+    60,
     (timeLeft) => {
       console.log(`⏳ Timer: ${timeLeft}s remaining for room ${roomCode}`);
       io.to(roomCode).emit("timer-update", timeLeft);
     },
     () => {
-      // This callback fires when the prompt timer ends
       if (!gameState.promptSubmitted) {
-        // If the prompt wasn't submitted manually, auto-submit a random one
         const predefinedPrompts = [
           "A notorious thief has stolen a valuable diamond from the city's museum and it's your job to either catch the thief or help them escape.",
           "A hacked satellite will crash into the city in 10 minutes.",
           "A high-tech bank is being robbed in the middle of the night.",
         ];
         const randomPrompt = predefinedPrompts[Math.floor(Math.random() * predefinedPrompts.length)];
-        gameState.prompt = randomPrompt; // Save the auto-selected prompt
-        gameState.promptSubmitted = true; // Mark as submitted
+        gameState.prompt = randomPrompt;
+        gameState.promptSubmitted = true;
         io.to(roomCode).emit("prompt-submitted", { prompt: randomPrompt });
         console.log(`⏳ Timer ended: Random prompt selected for room ${roomCode}: ${randomPrompt}`);
       }
@@ -155,36 +160,46 @@ function startRound(io, roomCode, gameStates, rooms, roundNumber) {
   );
 }
 
-// ############################### ENDING GAME ###############################
-// This function ends the game for a given room and emits the final results to all players.
+
+// **endGame(io, roomCode, gameStates, rooms)**:
+// - **Purpose**: Concludes the game and announces final results.
+// - **Process**:
+//   - Calculates final player placements based on their accumulated scores.
+//   - Emits a "game-ended" event with the final placements to all clients.
+//   - Unlocks the room to allow new games to be started.
+//   - Cleans up the game state for the room.
 function endGame(io, roomCode, gameStates, rooms) {
+  console.log(`[SERVER-DEBUG] === endGame function called for room: ${roomCode} ===`);
   console.log(`🏁 endGame function called for room: ${roomCode}`);
   const gameState = gameStates[roomCode];
   const players = gameState.players;
 
-  // Sort players by score
   const placements = [...players].sort((a, b) => b.score - a.score);
 
   console.log(`🏁 Final placements:`, placements);
 
-  // Emit final placements to all players
   io.to(roomCode).emit("game-ended", { placements });
   console.log(`📤 Emitted 'game-ended' event with placements:`, placements);
   console.log(`📤 Emitted 'game-ended' event for room ${roomCode}.`);
-
-  // Unlock the room to allow new players to join
+    console.log(`[SERVER-DEBUG] Emitted 'game-ended' for room ${roomCode}.`);
   if (rooms[roomCode]) {
     rooms[roomCode].locked = false;
     console.log(`🔓 Room ${roomCode} is now unlocked.`);
   }
 
-  // Clean up game state
   delete gameStates[roomCode];
 }
 
 
-// ############################### HANDLING PROMPT SUBMISSION ###############################
-// This function handles the submission of a prompt by the prompt provider.
+// **handleSubmitPrompt(socket, io, rooms, gameStates, data)**:
+// - **Purpose**: Handles a player's submission of a game prompt.
+// - **Process**:
+//   - Validates the submitted prompt (e.g., checks for empty strings).
+//   - Clears the prompt timer if a valid prompt is submitted manually before the timer runs out.
+//   - Stores the submitted prompt in the game state.
+//   - Emits a "prompt-submitted" event to all clients.
+//   - Calls `startAnswerPhase` to move to the next game phase.
+
 function handleSubmitPrompt(socket, io, rooms, gameStates, data) {
   const roomCode = socket.roomCode;
   const { prompt } = data;
@@ -205,26 +220,22 @@ function handleSubmitPrompt(socket, io, rooms, gameStates, data) {
       return;
     }
 
-    const trimmedPrompt = prompt.trim(); // Trim whitespace from the client's prompt
+    const trimmedPrompt = prompt.trim();
 
     if (trimmedPrompt === "") {
-      // If the submitted prompt is empty or just whitespace,
-      // DO NOT mark it as submitted, and let the timer handle the fallback.
       console.log(`⚠️ Received empty prompt from player ${socket.id}. Timer will auto-select if no valid prompt arrives.`);
-      // Optionally, you might want to give feedback to the player.
       io.to(socket.id).emit("error-message", "Prompt cannot be empty. A random one will be chosen if time runs out.");
-      return; // Exit here, let the timer handle the actual prompt setting
+      return;
     }
 
-    // If a valid (non-empty) prompt is submitted:
     if (gameState.promptTimer) {
       clearInterval(gameState.promptTimer);
       gameState.promptTimer = null;
       console.log(`🛑 Cleared prompt timer for room ${roomCode}`);
     }
 
-    gameState.prompt = trimmedPrompt; // Save the valid, trimmed prompt
-    gameState.promptSubmitted = true; // Mark as submitted only for valid prompts
+    gameState.prompt = trimmedPrompt;
+    gameState.promptSubmitted = true;
 
     io.to(roomCode).emit("prompt-submitted", { prompt: gameState.prompt });
     console.log(`📜 Prompt submitted successfully for room ${roomCode}: "${gameState.prompt}" (trimmed)`);
@@ -238,8 +249,13 @@ function handleSubmitPrompt(socket, io, rooms, gameStates, data) {
   }
 }
 
-// ############################### HANDLING GAME RESTART ###############################
-// This function handles the restart of a game for a given room.
+// **handleRestartGame(socket, io, rooms, gameStates)**:
+// - **Purpose**: Resets the game for a given room, allowing a new game to begin from the lobby.
+// - **Process**:
+//   - Deletes the existing game state for the room.
+//   - Unlocks the room and clears its player list.
+//   - Emits a "game-restarted" event to notify clients.
+
 function handleRestartGame(socket, io, rooms, gameStates) {
   const roomCode = socket.roomCode;
 
@@ -251,28 +267,30 @@ function handleRestartGame(socket, io, rooms, gameStates) {
 
   console.log(`🔄 Restarting game for room ${roomCode}.`);
 
-  // Reset the room's state
-  delete gameStates[roomCode]; // Clear the game state
-  rooms[roomCode].locked = false; // Unlock the room to allow new players to join
-  rooms[roomCode].players = []; // Clear the list of players
+  delete gameStates[roomCode];
+  rooms[roomCode].locked = false;
+  rooms[roomCode].players = [];
 
-  io.to(roomCode).emit("game-restarted"); // Notify clients that the game has been restarted
+  io.to(roomCode).emit("game-restarted");
   console.log(`✅ Room ${roomCode} has been reset and is open for new players.`);
 }
 
+// **handleSubmitAnswer(socket, io, rooms, gameStates, data)**:
+// - **Purpose**: Processes a player's answer submission.
+// - **Process**:
+//   - Stores the player's answer, trimming whitespace and handling empty submissions.
+//   - Updates the game state with the received answer, including the player's team.
+//   - Emits a "player-submitted" event to the host to update UI.
+//   - Checks if all players have submitted their answers. If so, it stops the answer phase timer and calls `processAllAnswers`.
 
-// ############################### HANDLING ANSWER SUBMISSION ###############################
-// This function handles the submission of answers by players during the answer phase.
 async function handleSubmitAnswer(socket, io, rooms, gameStates, data) {
-  // roomCode can come from socket.roomCode (for manual submissions) or data.roomCode (for auto-submissions)
   const roomCode = socket?.roomCode || data.roomCode;
-  const { playerName, answer } = data; // 'answer' can be the actual text, empty string, or '<No answer provided>'
+  const { playerName, answer } = data;
 
   console.log(`Data received on server for answer from ${playerName} in room ${roomCode}:`, data);
 
   if (!roomCode || !rooms[roomCode]) {
     console.log(`❌ Submit answer failed: Room ${roomCode} not found.`);
-    // Only emit error if it's a client-initiated submission (socket exists)
     if (socket && socket.id) io.to(socket.id).emit("error-message", "Room not found.");
     return;
   }
@@ -291,27 +309,19 @@ async function handleSubmitAnswer(socket, io, rooms, gameStates, data) {
 
   let answerToStore = answer;
   if (typeof answer === 'string') {
-    answerToStore = answer.trim(); // Trim whitespace from the client's answer
+    answerToStore = answer.trim();
 
-    // If, after trimming, it's an empty string, and it wasn't explicitly
-    // sent by the server as "<No answer provided>", then store it as an empty string.
-    // This handles cases where the user types spaces, or deletes their text.
     if (answerToStore === "" && data.answer !== "<No answer provided>") {
-      answerToStore = ""; // Player sent an empty or whitespace-only answer
+      answerToStore = "";
     }
-    // If data.answer was "<No answer provided>", then answerToStore remains "<No answer provided>"
   } else {
-    // Fallback for non-string answers, although typically 'answer' will be a string.
     answerToStore = "<No answer provided>";
   }
 
-
   if (existingAnswerIndex !== -1) {
-    // Update existing answer (e.g., if a player manually submits after an auto-submission)
     gameState.answers[existingAnswerIndex].answer = answerToStore;
     console.log(`📝 Answer updated for ${playerName} (Team: ${gameState.answers[existingAnswerIndex].team}): "${answerToStore}" in room ${roomCode}`);
   } else {
-    // Add new answer
     const player = gameState.players.find((p) => p.name === playerName);
     if (!player) {
       console.log(`❌ Submit answer failed: Player ${playerName} not found in game state.`);
@@ -321,30 +331,28 @@ async function handleSubmitAnswer(socket, io, rooms, gameStates, data) {
     console.log(`📝 Answer received from ${playerName} (Team: ${player.team}): "${answerToStore}" in room ${roomCode}`);
   }
 
-
-  // Emit to the host that a player has submitted (e.g., to update UI)
-  // Use playerName for auto-submissions, as socket.id might not be available or relevant.
   io.to(roomCode).emit("player-submitted", { playerName: playerName });
 
   const allPlayersAnswered = gameState.answers.length === rooms[roomCode].players.length;
   console.log(`All players answered: ${allPlayersAnswered} (Current answers: ${gameState.answers.length} / Total players: ${rooms[roomCode].players.length})`);
 
-
-  // IMPORTANT: Trigger AI processing only when ALL players have submitted OR the timer ends.
-  // The 'startAnswerPhase' function will handle this when the timer expires.
-  // If all players answer *before* the timer, we need to stop the timer and trigger AI.
   if (allPlayersAnswered && gameState.answerPhaseTimer) {
-    clearInterval(gameState.answerPhaseTimer); // Stop the timer if all answers are in early
+    clearInterval(gameState.answerPhaseTimer);
     gameState.answerPhaseTimer = null;
     console.log(`✅ All players submitted manually. Cleared answer phase timer for room ${roomCode}. Processing answers.`);
-    // After ensuring all answers are recorded, emit the 'answer-phase-ended' event.
-    io.to(roomCode).emit("answer-phase-ended", { allPlayerAnswers: gameState.answers }); // <-- Emit all answers here
-    // Call the function that processes answers and generates story/evaluation
+    io.to(roomCode).emit("answer-phase-ended", { allPlayerAnswers: gameState.answers });
     processAllAnswers(io, roomCode, gameStates, rooms);
   }
 }
 
-// Function to centralize AI processing after answers are collected
+// **processAllAnswers(io, roomCode, gameStates, rooms)**:
+// - **Purpose**: Centralized function to trigger AI processing (story generation and evaluation) after all answers are collected.
+// - **Process**:
+//   - Calls `generateStory` to create a narrative based on the prompt and answers.
+//   - Emits the generated story to the host.
+//   - Calls `evaluateAnswers` to assign points and determine winners.
+//   - Updates player scores in the game state.
+//   - Broadcasts the evaluation results to all clients.
 async function processAllAnswers(io, roomCode, gameStates, rooms) {
   const gameState = gameStates[roomCode];
   if (!gameState) {
@@ -352,7 +360,7 @@ async function processAllAnswers(io, roomCode, gameStates, rooms) {
     return;
   }
 
-  const hostId = rooms[roomCode].hostId; // Assuming hostId is stored in rooms object
+  const hostId = rooms[roomCode].hostId;
   const prompt = gameState.prompt;
   const answers = gameState.answers;
   const players = gameState.players;
@@ -365,16 +373,10 @@ async function processAllAnswers(io, roomCode, gameStates, rooms) {
     const evaluation = await evaluateAnswers(prompt, answers, story, players);
     console.log("🏆 Evaluation Results:", evaluation);
 
-    // Update game state with evaluated players' scores
     gameState.players = evaluation.players;
 
-    // Broadcast evaluation results to all clients
     io.to(roomCode).emit("evaluation-results", evaluation);
 
-    // Notify clients that the answer phase has ended
-    // This event is already emitted in handleSubmitAnswer and startAnswerPhase
-    // but ensures it's sent after AI processing is complete if it wasn't already.
-    // io.to(roomCode).emit("answer-phase-ended", { nextRoundAvailable: true });
     console.log(`✅ Answers processed, story generated, and points assigned for room ${roomCode}`);
   } catch (error) {
     console.error("❌ Error during AI processing (generateStory/evaluateAnswers):", error);
@@ -383,11 +385,14 @@ async function processAllAnswers(io, roomCode, gameStates, rooms) {
 }
 
 
-// Timer for the answer phase (to be triggered after prompt is submitted)
-// This function starts the answer phase timer and checks for player submissions.
-// It emits updates to the clients and handles the end of the phase.
+// **startAnswerPhase(io, roomCode, gameStates, rooms)**:
+// - **Purpose**: Initiates the timer for the answer submission phase.
+// - **Process**:
+//   - Sets up a countdown timer for players to submit their answers.
+//   - Emits "answer-timer-update" events to clients.
+//   - When the timer ends, it identifies players who haven't submitted answers and auto-submits a default "<No answer provided>" for them.
+//   - Calls `processAllAnswers` after all answers (manual or auto-submitted) are recorded.
 function startAnswerPhase(io, roomCode, gameStates, rooms) {
-  /*timertijd */
   const timerDuration = 95;
   let timeLeft = timerDuration;
 
@@ -397,18 +402,15 @@ function startAnswerPhase(io, roomCode, gameStates, rooms) {
     return;
   }
 
-  // Clear any existing timer to prevent multiple timers running
   if (gameState.answerPhaseTimer) {
     clearInterval(gameState.answerPhaseTimer);
   }
-  // Initialize answers array if it doesn't exist (though it should from startGame)
   if (!gameState.answers) {
     gameState.answers = [];
   }
 
-  io.to(roomCode).emit("answer-timer-update", timeLeft); // Send initial time immediately
+  io.to(roomCode).emit("answer-timer-update", timeLeft);
 
-  // Timer logic
   gameState.answerPhaseTimer = setInterval(() => {
     timeLeft -= 1;
     io.to(roomCode).emit("answer-timer-update", timeLeft);
@@ -424,19 +426,15 @@ function startAnswerPhase(io, roomCode, gameStates, rooms) {
         return;
       }
 
-      // Identify players who have NOT submitted an answer yet
       const playersWithoutAnswers = rooms[roomCode].players.filter(
         (player) => !gameState.answers.some((answer) => answer.playerName === player.name)
       );
 
-      // Auto-submit "<No answer provided>" for players who haven't submitted
       playersWithoutAnswers.forEach((player) => {
-        // Ensure we don't double-submit if there was a race condition
         if (!gameState.answers.some(a => a.playerName === player.name)) {
           const autoSubmission = { playerName: player.name, answer: "<No answer provided>", roomCode: roomCode };
-          // Pass roomCode in data for server-side lookup in handleSubmitAnswer
           handleSubmitAnswer(
-            { roomCode, id: 'server_auto_submission' }, // Mock socket for server-initiated call
+            { roomCode, id: 'server_auto_submission' },
             io,
             rooms,
             gameStates,
@@ -445,31 +443,29 @@ function startAnswerPhase(io, roomCode, gameStates, rooms) {
         }
       });
 
-      // After giving a brief moment for any final client-side submissions to land
-      // and for the server's auto-submissions to be processed,
-      // we check again if all players have answers. This ensures AI runs after all fallbacks.
-      // A small timeout here can help if handleSubmitAnswer is asynchronous or if there's minor network lag.
       setTimeout(() => {
         const allPlayersAnsweredAfterFallback = gameState.answers.length === rooms[roomCode].players.length;
         console.log(`All players answered (after timer auto-submission check): ${allPlayersAnsweredAfterFallback}`);
 
-        // Emit all answers to clients before processing, so clients can display them
-        io.to(roomCode).emit("answer-phase-ended", { allPlayerAnswers: gameState.answers }); // <-- Emit all answers here as well
+        io.to(roomCode).emit("answer-phase-ended", { allPlayerAnswers: gameState.answers });
 
-        // If all players have answers (either manual or auto-submitted), proceed with AI processing
         if (allPlayersAnsweredAfterFallback) {
           processAllAnswers(io, roomCode, gameStates, rooms);
         } else {
-          // This else block should ideally not be hit if all players are handled.
-          // It's a safety net.
           console.error(`🔴 Critical: Not all players have answers even after timer and auto-submission. Remaining: ${rooms[roomCode].players.length - gameState.answers.length}`);
-          // Even if critical, still proceed to next phase for players.
-          // io.to(roomCode).emit("answer-phase-ended", { nextRoundAvailable: true }); // This line is now redundant if answers are always emitted.
         }
-      }, 50); // Small delay to let all handleSubmitAnswer calls finish.
+      }, 50);
     }
   }, 1000);
 }
+
+
+// **handleSpeechDone(socket, io, rooms)**:
+// - **Purpose**: Notifies the server that the host's story narration (TTS) is complete.
+// - **Process**:
+//   - Validates that the event is emitted by the designated host.
+//   - Updates the server-side `room.isSpeechDone` state to true.
+//   - Broadcasts a "speech-done" event to all clients in the room.
 function handleSpeechDone(socket, io, rooms) {
   const roomCode = socket.roomCode;
   const room = rooms[roomCode];
@@ -480,20 +476,26 @@ function handleSpeechDone(socket, io, rooms) {
   }
 
   if (room && socket.id === room.hostId) {
-    // *** CRITICAL FIX: Update server-side room state FIRST ***
-    room.isSpeechDone = true; // <--- THIS LINE IS ABSOLUTELY ESSENTIAL HERE
+    room.isSpeechDone = true;
 
     console.log(`Host ${socket.id} in room ${roomCode} reports speech is done. Broadcasting to all clients.`);
-    io.to(roomCode).emit("speech-done"); // Now broadcast, client state will update
+    io.to(roomCode).emit("speech-done");
   } else {
     console.warn(`Non-host ${socket.id} tried to emit 'speech-done' in room ${roomCode}. Ignoring.`);
-    // Optionally, emit an error back to the trying client if needed
   }
 }
 
+
+// **handleContinueToResults(socket, io, rooms)**:
+// - **Purpose**: Allows the host to manually advance the game from the story phase to the evaluation phase once narration is complete.
+// - **Process**:
+//   - Validates that the request comes from the host and that story narration is indeed marked as complete (`room.isSpeechDone`).
+//   - Updates the server's `room.gamePhase` and resets `isSpeechDone` for future use.
+//   - Broadcasts a "proceed-to-evaluation" event to all clients, prompting them to transition their UI.
+
 function handleContinueToResults(socket, io, rooms) {
   const roomCode = socket.roomCode;
-  const room = rooms[roomCode]; // Assuming 'room' object is available
+  const room = rooms[roomCode];
 
   if (!roomCode || !room) {
     console.warn(`❌ Continue to results failed: Room ${roomCode} not found for socket ${socket.id}.`);
@@ -501,28 +503,27 @@ function handleContinueToResults(socket, io, rooms) {
     return;
   }
 
-  // *** CHECK: This is the check that's currently failing ***
   if (!room.isSpeechDone) {
     console.warn(`❌ Continue to results failed: Speech is not done in room ${roomCode}.`);
     socket.emit("error-message", "Story narration must be complete before continuing.");
     return;
   }
 
-  // If the checks pass, proceed:
-  // Update server's game phase (assuming `room.gamePhase` exists)
-  room.gamePhase = "evaluation"; // Update the server's source of truth for the phase
+  room.gamePhase = "evaluation";
 
-  // Reset isSpeechDone for the next round or subsequent uses if needed
-  // This is important so it doesn't stay 'true' indefinitely.
-  room.isSpeechDone = false; // Reset for potential future speech narration
+  room.isSpeechDone = false;
 
   console.log(`Host ${socket.id} in room ${roomCode} clicked "Continue to Results". Broadcasting proceed to evaluation.`);
-  io.to(roomCode).emit("proceed-to-evaluation"); // Broadcast to all clients to transition
+  io.to(roomCode).emit("proceed-to-evaluation");
 }
 
-
-// ############################### GENERATING STORY ###############################
-// This function generates a story based on the prompt and player responses using OpenAI's API.
+// **generateStory(prompt, responses)**:
+// - **Purpose**: Communicates with the OpenAI API to generate a creative story.
+// - **Process**:
+//   - Constructs a detailed prompt for OpenAI, including the game's main prompt, all player responses, and their assigned teams (Hero/Villain).
+//   - Specifies rules for the AI, such as strict adherence to player roles, inclusion of a plot twist (without explicit mention), character actions, and handling of missing answers.
+//   - Ensures the story concludes with a clear winning team.
+//   - Returns the AI-generated story text.
 async function generateStory(prompt, responses) {
   try {
     console.log("📤 Sending to OpenAI:");
@@ -574,9 +575,15 @@ Important:
   }
 }
 
-// ############################### EVALUATING ANSWERS ###############################
-// This function evaluates the players' answers and assigns points based on their contributions to the story.
 
+// **evaluateAnswers(prompt, responses, story, players)**:
+// - **Purpose**: Uses the OpenAI API to evaluate player contributions and assign points.
+// - **Process**:
+//   - Creates a prompt for OpenAI, providing the original game prompt, player responses, the generated story, and team information.
+//   - Asks OpenAI to determine the winning team, most impactful player, and most original player based on the story and roles.
+//   - Parses the JSON response from OpenAI.
+//   - Assigns points to players based on the evaluation results (e.g., points for winning team, impactful answer, original answer).
+//   - Returns the evaluation results along with the updated player scores.
 async function evaluateAnswers(prompt, responses, story, players) {
   try {
     const evaluationInput = `
@@ -613,17 +620,13 @@ async function evaluateAnswers(prompt, responses, story, players) {
     const result = JSON.parse(evaluation.choices[0].message.content);
     console.log("🏆 Evaluation Results:", result);
 
-    // Assign points based on evaluation
     players.forEach((player) => {
-      // Winning team points
       if (player.team === result.winningTeam) {
         player.score += 1;
       }
-      // Most impactful answer
       if (player.name === result.impactfulPlayer) {
         player.score += 1;
       }
-      // Most original answer
       if (player.name === result.originalPlayer) {
         player.score += 1;
       }
@@ -631,7 +634,7 @@ async function evaluateAnswers(prompt, responses, story, players) {
 
     return {
       ...result,
-      players, // Return updated players with scores
+      players,
     };
   } catch (error) {
     console.error("❌ Error evaluating answers:", error);
@@ -645,50 +648,30 @@ async function evaluateAnswers(prompt, responses, story, players) {
 }
 
 
-// ############################### HANDLING START NEXT ROUND ###############################
-// This function handles the transition to the next round of the game.
 function handleStartNextRound(socket, io, rooms, gameStates, data) {
-  const roomCode = socket.roomCode;
+    const roomCode = socket.roomCode;
+    const gameState = gameStates[roomCode];
 
-  const gameState = gameStates[roomCode];
+    if (!gameState) {
+        console.error(`❌ handleStartNextRound: No game state found for room ${roomCode}.`);
+        io.to(socket.id).emit("error-message", "Game state not found. Cannot start the next round.");
+        return;
+    }
 
-  if (!gameStates[roomCode]) {
-    console.log(`⚠️ Game state for room ${roomCode} no longer exists.`);
-    return;
-  }
+    const nextRound = gameState.currentRound + 1;
 
-  if (!gameState) {
-    console.error(`❌ No game state found for room ${roomCode}.`);
-    io.to(socket.id).emit("error-message", "Game state not found. Cannot start the next round.");
-    return;
-  }
+    console.log(`[SERVER-DEBUG] Received 'start-next-round' for room: ${roomCode}`);
+    console.log(`[SERVER-DEBUG] Current Round: ${gameState.currentRound}, Next Round calculated: ${nextRound}, Total Rounds: ${gameState.totalRounds}`);
 
-  const nextRound = gameState.currentRound + 1; // Increment the current round
 
-  console.log(`📢 Received request to start round ${nextRound + 1} for room ${roomCode}.`);
+    if (nextRound >= gameState.totalRounds) {
+        console.log(`[SERVER-DEBUG] Condition met: nextRound (<span class="math-inline">\{nextRound\}\) \>\= totalRounds \(</span>{gameState.totalRounds}). Ending game.`);
+        endGame(io, roomCode, gameStates, rooms);
+        return;
+    }
 
-  // Validate room existence
-  if (!roomCode || !rooms[roomCode]) {
-    console.log(`❌ Start next round failed: Room ${roomCode} not found.`);
-    io.to(socket.id).emit("error-message", "Room not found.");
-    return;
-  }
-
-  console.log(`🛠️ Current game state for room ${roomCode}:`, {
-    currentRound: gameState.currentRound,
-    totalRounds: gameState.totalRounds,
-    players: gameState.players.length,
-  });
-
-  // Validate if the game has ended
-  if (nextRound >= gameState.totalRounds) {
-    console.log(`🏁 All rounds complete for room ${roomCode}. Ending game.`);
-    endGame(io, roomCode, gameStates, rooms); // Pass `rooms` here
-    return;
-  }
-
-  console.log(`🔄 Starting round ${nextRound + 1} (index ${nextRound}) for room ${roomCode}.`);
-  startRound(io, roomCode, gameStates, rooms, nextRound); // Properly pass `nextRound`
+    console.log(`[SERVER-DEBUG] Condition NOT met. Starting round ${nextRound + 1} (index ${nextRound}) for room ${roomCode}.`);
+    startRound(io, roomCode, gameStates, rooms, nextRound);
 }
 
 module.exports = {
@@ -701,6 +684,6 @@ module.exports = {
   handleStartNextRound,
   handleRestartGame,
   endGame,
-    handleSpeechDone,
+  handleSpeechDone,
   handleContinueToResults,
 };

@@ -1,10 +1,15 @@
-// components/Home.jsx
+// This file defines the Home component, which serves as the initial landing page for users.
+// It allows players to choose between two roles: "client" (a regular player) or "host" (the game master).
+// The component visually distinguishes between these roles using different background videos and displays
+// descriptive text for each role. Users can navigate between roles using arrow buttons and confirm their
+// selection to proceed to the next relevant section of the application.
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const videos = {
-  client: "/videos/motion_backgrounds2/Color-geometry-5_4k_1.mp4",
-  host: "/videos/motion_backgrounds2/Color-geometry-3_4k_1.mp4",
+  client: "/videos/motion_backgrounds3/Color-geometry-5_4k_1.mp4",
+  host: "/videos/motion_backgrounds3/Color-geometry-3_4k_1.mp4",
 };
 
 const roles = ["client", "host"];
@@ -72,6 +77,20 @@ const Home = () => {
             </button>
           </div>
         </div>
+              <img
+  src="/photos/cornerlogo.png"
+  alt="Corner Decoration"
+  style={{
+    position: 'fixed',
+    bottom: '0px',
+    right: '0px',
+    width: '150px', 
+    height: 'auto',
+    zIndex: 10000,
+    display: 'none', 
+  }}
+  className="corner-photo"
+/>
       </div>
     </div>
   );
