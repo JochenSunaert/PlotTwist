@@ -98,7 +98,7 @@ button:focus-visible {
 /* Background Video Styling (Used by both Host and Client) */
 .background-video {
     position: absolute;
-    top: 60%; /* Center vertically */
+    top: 50%; /* Center vertically */
     left: 50%; /* Center horizontally */
     min-width: 100%;
     min-height: 100%;
