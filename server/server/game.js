@@ -543,11 +543,11 @@ The players belong to the following teams:
 
 Your task is to write a **funny and entertaining story** about what happened, incorporating *all* player actions.
 
-**The most critical rule for determining the outcome: The story's resolution MUST be based SOLELY on how players' actions directly address or fail to address the core crisis presented in the game prompt.** Prioritize the effectiveness, cleverness, and tactical superiority of actions that directly influence the *hacked satellite crashing into the city*.
+**The most critical rule for determining the outcome: The story's resolution MUST be based SOLELY on how players' actions directly address or fail to address the core crisis presented in the game prompt.** Prioritize the effectiveness, cleverness, and tactical superiority of actions that directly influence the given prompt.
 
 **If a player's action directly resolves or significantly mitigates the primary crisis, that action should lead to success for their team.** Conversely, if a player's action is irrelevant, passive, ineffective, or introduces magical/supernatural elements (despite player input), it must be rendered logically inconsequential or detrimental within the story's realistic framework, leading to a negative outcome for their team if the opposing side is effective.
 
-**Villains MUST succeed and win the story ONLY if their actions are demonstrably more strategic, impactful, or creatively effective in causing or exacerbating the primary crisis (the satellite crash), or if the heroes fail to adequately address it.** If a hero's action effectively neutralizes the main threat, heroes must win unless a villain's action directly and realistically prevents that neutralization.
+**Villains MUST succeed and win the story ONLY if their actions are demonstrably more strategic, impactful, or creatively effective in causing or exacerbating the primary crisis, or if the heroes fail to adequately address it.** If a hero's action effectively neutralizes the main threat, heroes must win unless a villain's action directly and realistically prevents that neutralization.
 
 Make sure to:
 1.  **Strictly align player actions with their assigned roles** as Heroes or Villains.
@@ -557,7 +557,7 @@ Make sure to:
 5.  If including a plot twist, it **MUST arise directly from the players' actions or the immediate consequences of those actions within the established scene**, and must not introduce new, unprompted elements or characters or unrelated new threats. Do not explicitly mention it's a plot twist.
 6.  Discuss the actions of **every player**, making the narrative engaging and interesting to read.
 7.  **Avoid ALL magical elements or supernatural interventions.** Keep the story strictly realistic and grounded in the established world. *Actions like "eating magic food to get stronger" are considered magical and must be portrayed as ineffective or irrelevant in a realistic context, perhaps leading to humorous side-effects but not actual superhuman power.*
-8.  If a player did not provide an answer, or if their answer is passive/irrelevant/ineffective (like "eating a banana" or "eating magic food" when a satellite is crashing), reflect this in the story by showing them failing, getting caught, or facing a logical, direct negative consequence relevant to their inaction or poor contribution. Their inaction/ineffectiveness should directly contribute to their team's defeat if the opposing team acts decisively on the primary objective.
+8.  If a player did not provide an answer, or if their answer is passive/irrelevant/ineffective (like "eating a banana" or "eating magic food"), reflect this in the story by showing them failing, getting caught, or facing a logical, direct negative consequence relevant to their inaction or poor contribution. Their inaction/ineffectiveness should directly contribute to their team's defeat if the opposing team acts decisively on the primary objective.
 9.  The story must **clearly conclude with one team definitively winning or losing** regarding the *original crisis*. There should be no ambiguity about the final outcome.
 
 **ULTRA-STRICT Constraints to prevent unprompted elements (READ CAREFULLY):**
