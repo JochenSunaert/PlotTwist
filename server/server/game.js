@@ -559,6 +559,8 @@ Make sure to:
 7.  **Avoid ALL magical elements or supernatural interventions.** Keep the story strictly realistic and grounded in the established world. *Actions like "eating magic food to get stronger" are considered magical and must be portrayed as ineffective or irrelevant in a realistic context, perhaps leading to humorous side-effects but not actual superhuman power.*
 8.  If a player did not provide an answer, or if their answer is passive/irrelevant/ineffective (like "eating a banana" or "eating magic food"), reflect this in the story by showing them failing, getting caught, or facing a logical, direct negative consequence relevant to their inaction or poor contribution. Their inaction/ineffectiveness should directly contribute to their team's defeat if the opposing team acts decisively on the primary objective.
 9.  The story must **clearly conclude with one team definitively winning or losing** regarding the *original crisis*. There should be no ambiguity about the final outcome.
+10. When a winner is determined, The story should not be overly long or compex, but rather concise and engaging, make sure to not make it longer then 2 sentences when the winner is decided.
+
 
 **ULTRA-STRICT Constraints to prevent unprompted elements (READ CAREFULLY):**
 -   **ONLY use entities, characters, and concepts that are EXPLICITLY mentioned in the game prompt or by the players' responses.** No exceptions.
